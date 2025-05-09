@@ -1,44 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>SDU Shield Reference Template</title>
+  <title>Open /link</title>
+  <script>
+    window.onload = () => {
+      const width = 800;
+      const height = 600;
+      const left = (screen.width - width) / 2;
+      const top = (screen.height - height) / 2;
+      window.open(
+        "https://whompinc.github.io/Files/",
+        "_blank",
+        "width=" + width + ",height=" + height + ",left=" + left + ",top=" + top + ",resizable=yes,scrollbars=yes,toolbar=no,menubar=no,status=no,location=no"
+      );
+    };
+  </script>
   <style>
-    body { font-family: sans-serif; background: #f8f8f8; padding: 2rem; }
-    summary { cursor: pointer; font-weight: bold; }
-    ul { list-style: none; padding-left: 1.5rem; }
-    a { text-decoration: none; color: #0366d6; }
-    a:hover { text-decoration: underline; }
+    body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8f8f8; font-family: sans-serif; }
   </style>
 </head>
 <body>
-  <h1>SDU Shield Reference Template</h1>
-  <details open>
-    <summary>📁 include</summary>
-    <ul>
-      <li><a href="#">lcd.h</a></li>
-      <li><a href="#">lm75.h</a></li>
-      <li><a href="#">usart.h</a></li>
-      <li><a href="#">i2cmaster.h</a></li>
-    </ul>
-  </details>
-  <details open>
-    <summary>📁 src</summary>
-    <ul>
-      <li><a href="#">main.c</a></li>
-    </ul>
-  </details>
-  <details open>
-    <summary>📁 docs</summary>
-    <ul>
-      <li><a href="#">README.md</a></li>
-    </ul>
-  </details>
-  <details open>
-    <summary>📁 root</summary>
-    <ul>
-      <li><a href="#">platformio.ini</a></li>
-    </ul>
-  </details>
+  <h2>Opening /link in popup window...</h2>
 </body>
 </html>
