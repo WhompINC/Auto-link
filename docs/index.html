@@ -1,186 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>SDU Shield Explorer</title>
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: monospace;
-      background: #1e1e1e;
-      color: #ddd;
-    }
+    html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
     .grid {
-      display: grid;
+      display:grid;
       grid-template-columns: 250px 1fr;
       grid-template-rows: auto auto 1fr;
       grid-template-areas:
         "sidebar header"
         "sidebar controls"
         "sidebar viewer";
-      height: 100%;
+      height:100%;
     }
-
-    /* Sidebar: File Tree */
     #sidebar {
       grid-area: sidebar;
-      background: #2d2d2d;
-      padding: 10px;
-      overflow-y: auto;
+      background:#2d2d2d; padding:10px; overflow-y:auto;
     }
-    #sidebar h3 {
-      margin-top: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    #sidebar ul {
-      list-style: none;
-      padding-left: 10px;
-      margin: 0;
-    }
-    #sidebar li {
-      cursor: pointer;
-      user-select: none;
-      margin: 4px 0;
-    }
-    #sidebar li::before {
-      content: "► ";
-    }
-    #sidebar li.expanded::before {
-      content: "▼ ";
-    }
-    #sidebar li.file::before {
-      content: "📄 ";
-    }
+    #sidebar h3 { margin-top:0; }
+    #sidebar ul { list-style:none; padding-left:10px; margin:0; }
+    #sidebar li { cursor:pointer; user-select:none; margin:4px 0; }
+    #sidebar li::before { content:"► "; }
+    #sidebar li.expanded::before { content:"▼ "; }
+    #sidebar li.file::before { content:"📄 "; }
 
-    /* Header: Navigation + Breadcrumbs + Search */
     #header {
       grid-area: header;
-      display: flex;
-      align-items: center;
-      background: #333;
-      padding: 8px;
-      border-bottom: 1px solid #444;
+      display:flex; align-items:center;
+      background:#333; padding:8px; border-bottom:1px solid #444;
     }
-    #header.highlight {
-      background: #444;
+    #header.highlight { background:#444; }
+    #back-btn, #forward-btn, #env-toggle, #search-btn {
+      background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer;
     }
-    #back-btn,
-    #forward-btn,
-    #env-toggle,
-    #search-btn {
-      background: #444;
-      color: #fff;
-      border: none;
-      padding: 4px 8px;
-      margin-right: 8px;
-      cursor: pointer;
-    }
-    #back-btn.disabled,
-    #forward-btn.disabled {
-      opacity: .4;
-      cursor: default;
-    }
+    #back-btn.disabled, #forward-btn.disabled { opacity:.4; cursor:default; }
     #path-display {
-      display: flex;
-      align-items: center;
-      color: #569cd6;
-      cursor: pointer;
-      margin-right: 16px;
-      overflow-x: auto;
+      display:flex; align-items:center;
+      color:#569cd6; cursor:pointer; margin-right:16px;
+      white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 400px; /* Set fixed size */
     }
-    #path-display span {
-      margin-right: 4px;
-      white-space: nowrap;
-    }
-    #path-display span:hover {
-      text-decoration: underline;
-    }
-    #env-toggle.active {
-      background: #0e639c;
-    }
-    #search-btn {
-      font-size: 18px;
-      padding: 4px;
-    }
+    #path-display span { margin-right:4px; }
+    #path-display span:hover { text-decoration:underline; }
+    #env-toggle.active { background:#0e639c; }
+    #search-btn { font-size:18px; padding:4px; }
     #search {
-      flex: 1;
-      background: #222;
-      color: #ddd;
-      border: 1px solid #444;
-      padding: 4px 8px;
-      margin-left: 4px;
+      flex:1; background:#222; color:#ddd; border:1px solid #444;
+      padding:4px 8px; margin-left:4px;
     }
 
-    /* Controls (placeholder for future) */
-    #controls {
-      grid-area: controls;
-    }
+    #controls { grid-area: controls; }
 
-    /* Viewer: List / Preview */
     #viewer {
       grid-area: viewer;
-      padding: 12px;
-      overflow-y: auto;
+      padding:12px; overflow-y:auto;
+      background: #252526;
+      border: 1px solid #444;
+      color: #ddd;
+      white-space: pre-wrap;
     }
     .file-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 0;
-      border-bottom: 1px solid #2d2d2d;
+      display:flex; justify-content:space-between; align-items:center;
+      padding:6px 0; border-bottom:1px solid #2d2d2d;
     }
-    .file-item a {
-      color: #569cd6;
-      text-decoration: none;
-      font-size: 16px;
-    }
-    .file-item a:hover {
-      text-decoration: underline;
-    }
+    .file-item a { color:#569cd6; text-decoration:none; font-size:16px; }
+    .file-item a:hover { text-decoration:underline; }
     .download-btn {
-      background: transparent;
-      border: none;
-      font-size: 20px;
-      color: #0e639c;
-      cursor: pointer;
+      background:transparent; border:none; font-size:20px; color:#0e639c; cursor:pointer;
     }
-    .download-btn:hover {
-      color: #1177bb;
-    }
+    .download-btn:hover { color:#1177bb; }
 
-    /* Document preview + Copy */
     #doc-view {
-      white-space: pre-wrap;
-      background: #252526;
-      padding: 8px;
-      border: 1px solid #444;
-      margin-top: 12px;
-      min-height: 200px;
-      overflow-x: auto;
+      white-space:pre-wrap; background:#252526; padding:8px; border:1px solid #444;
+      margin-top:12px; min-height:200px;
     }
     #copy-btn {
-      margin-top: 8px;
-      background: #0e639c;
-      border: none;
-      color: #fff;
-      padding: 4px 8px;
-      cursor: pointer;
-      display: none;
+      margin-top:8px; background:#0e639c; border:none; color:#fff; padding:4px 8px; cursor:pointer;
+      display:none;
     }
-    #copy-btn:hover {
-      background: #1177bb;
-    }
+    #copy-btn:hover { background:#1177bb; }
   </style>
 </head>
 <body>
   <div class="grid">
     <div id="sidebar">
-      <h3>
-        📁 File Tree
-      </h3>
+      <h3>📁 File Tree</h3>
       <ul id="path-tree"></ul>
     </div>
 
@@ -190,19 +97,19 @@
       <div id="path-display"></div>
       <button id="env-toggle">[LOCAL]</button>
       <button id="search-btn">🔍</button>
-      <input id="search" placeholder="[LOCAL] Search..." />
+      <input id="search" placeholder="Search..." />
     </div>
 
     <div id="controls"></div>
 
     <div id="viewer">
-      <div id="doc-view"></div>
+      <div id="doc-view">Loading content...</div>
       <button id="copy-btn">Copy</button>
     </div>
   </div>
 
   <script>
-    // Dummy hierarchical data for LOCAL and VIRTUAL
+    // Dummy data
     const treeData = {
       "C:": {
         "1st semester p": {},
@@ -213,11 +120,7 @@
               "nanoatmega.hex": "file",
               "nanoatmega.bin": "file"
             },
-            "libdeps": {},
-            ".vscode": {},
-            "__MACOSX": {},
-            "include": {},
-            "lib": {},
+            "libdeps": {}, ".vscode": {}, "__MACOSX": {}, "include": {}, "lib": {},
             "src": { "main.c": "file" },
             "test": {}
           }
@@ -232,176 +135,144 @@
       }
     };
 
-    // State & history
-    let env = localStorage.getItem("env") || "LOCAL";
-    let current = localStorage.getItem("lastPath") || (env === "LOCAL" ? "C:" : "VIRTUAL:");
-    let historyStack = [], historyPos = -1;
+    // State & refs
+    let env = "LOCAL", current = "C:";
+    let hist = [], pos = -1;
+    const treeRoot = document.getElementById("path-tree"),
+          pathDisp = document.getElementById("path-display"),
+          backBtn  = document.getElementById("back-btn"),
+          fwdBtn   = document.getElementById("forward-btn"),
+          envToggle= document.getElementById("env-toggle"),
+          searchBtn= document.getElementById("search-btn"),
+          searchEl = document.getElementById("search"),
+          viewer   = document.getElementById("viewer"),
+          docView  = document.getElementById("doc-view"),
+          copyBtn  = document.getElementById("copy-btn"),
+          header   = document.getElementById("header");
 
-    // Element refs
-    const treeRoot = document.getElementById("path-tree");
-    const pathDisp = document.getElementById("path-display");
-    const backBtn = document.getElementById("back-btn");
-    const fwdBtn = document.getElementById("forward-btn");
-    const envToggle = document.getElementById("env-toggle");
-    const searchBtn = document.getElementById("search-btn");
-    const searchEl = document.getElementById("search");
-    const viewer = document.getElementById("viewer");
-    const docView = document.getElementById("doc-view");
-    const copyBtn = document.getElementById("copy-btn");
-    const header = document.getElementById("header");
-
-    // History helpers
-    function updateNavButtons() {
-      backBtn.disabled = historyPos <= 0;
-      fwdBtn.disabled = historyPos >= historyStack.length - 1;
+    // History functions
+    function updateNav(){
+      backBtn.disabled = pos<=0;
+      fwdBtn.disabled  = pos>=hist.length-1;
       backBtn.classList.toggle("disabled", backBtn.disabled);
       fwdBtn.classList.toggle("disabled", fwdBtn.disabled);
     }
-
-    function pushHistory(path) {
-      historyStack = historyStack.slice(0, historyPos + 1);
-      historyStack.push(path);
-      historyPos++;
-      updateNavButtons();
-      localStorage.setItem("lastPath", path);
+    function pushHist(p){
+      hist=hist.slice(0,pos+1);
+      hist.push(p);
+      pos++;
+      updateNav();
+      localStorage.setItem("lastPath", p);  // Save path to localStorage
     }
-
-    backBtn.onclick = () => { if (historyPos > 0) navigate(historyStack[--historyPos], false); };
-    fwdBtn.onclick = () => { if (historyPos < historyStack.length - 1) navigate(historyStack[++historyPos], false); };
-    window.onmousedown = e => {
-      if (e.button === 3) backBtn.click();
-      if (e.button === 4) fwdBtn.click();
+    backBtn.onclick    = ()=>{ if(pos>0) navigate(hist[--pos], false); };
+    fwdBtn.onclick     = ()=>{ if(pos<hist.length-1) navigate(hist[++pos], false); };
+    window.onmousedown = e=>{
+      if(e.button===3) backBtn.click();
+      if(e.button===4) fwdBtn.click();
     };
 
-    // Build the tree recursively
-    function buildTree(node, ul, prefix = "") {
-      Object.keys(node).forEach(key => {
+    // Build Tree
+    function buildTree(node, ul, prefix=""){
+      for(const key in node){
         const li = document.createElement("li");
         li.textContent = key;
         ul.appendChild(li);
-
         const childUl = document.createElement("ul");
-        childUl.style.display = "none";
+        childUl.style.display="none";
         li.appendChild(childUl);
 
-        if (typeof node[key] === "object") {
+        if(typeof node[key]==="object"){
           li.classList.add("folder");
-          li.onclick = e => {
+          li.onclick = e=>{
             e.stopPropagation();
-            const expanded = li.classList.toggle("expanded");
-            childUl.style.display = expanded ? "block" : "none";
+            const exp = li.classList.toggle("expanded");
+            childUl.style.display = exp ? "block" : "none";
             navigate(prefix ? prefix + "/" + key : key);
           };
           buildTree(node[key], childUl, prefix ? prefix + "/" + key : key);
         } else {
           li.classList.add("file");
-          li.onclick = e => {
+          li.onclick = e=>{
             e.stopPropagation();
             navigate(prefix ? prefix + "/" + key : key);
           };
         }
-      });
+      }
     }
 
-    // Navigate and render
-    function navigate(path, push = true) {
-      if (push) pushHistory(path);
+    // Path handling
+    function navigate(path, push=true){
+      if(push) pushHist(path);
       current = path;
-
-      // Render breadcrumbs
       pathDisp.innerHTML = "";
-      path.split("/").forEach((seg, i) => {
-        const acc = path.split("/").slice(0, i + 1).join("/");
+      const pathSegments = path.split("/").slice(-3); // Show the last 3 segments
+      pathSegments.forEach((seg, i) => {
         const span = document.createElement("span");
         span.textContent = seg;
-        span.onclick = () => navigate(acc);
+        span.onclick = () => navigate(path.split("/").slice(0, i + 1).join("/"));
         pathDisp.appendChild(span);
       });
 
-      // Clear viewer
+      renderContents(path);
+    }
+
+    // Render contents or file preview
+    function renderContents(path) {
       viewer.innerHTML = "";
-      docView.textContent = "";
-      copyBtn.style.display = "none";
+      const q = searchEl.value.trim().toLowerCase();
+      const children = fsStore[env][path].children || [];
+      const list = q ? children.filter(n => n.toLowerCase().includes(q)) : children;
 
-      const query = searchEl.value.trim().toLowerCase();
-      const rootNode = treeData[path.split(":")[0]];
-      const parts = path.split(":")[1].split("/").filter(Boolean);
-      let node = rootNode;
-      parts.forEach(p => { node = node[p]; });
+      list.forEach(name => {
+        const full = path + (path.endsWith(":") ? "/" : "/") + name;
+        const entry = fsStore[env][full];
+        const row = document.createElement("div");
+        row.className = "file-item";
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = (entry === "file" ? "📄 " : "📁 ") + name;
+        a.onclick = e => { e.preventDefault(); navigate(full); };
+        row.appendChild(a);
+        if (entry === "file") {
+          const dl = document.createElement("button");
+          dl.className = "download-btn";
+          dl.textContent = "📥";
+          dl.onclick = () => window.open(`https://whompinc.github.io/${full}`, "_blank");
+          row.appendChild(dl);
+        }
+        viewer.appendChild(row);
+      });
 
-      // If folder, list children with optional truncation "..."
-      if (typeof node === "object") {
-        const allChildren = Object.keys(node);
-        const matching = query ? allChildren.filter(n => n.toLowerCase().includes(query)) : allChildren;
-        const maxItems = Math.floor((window.innerHeight - document.getElementById("header").getBoundingClientRect().bottom - 20) / 30);
-        let count = 0;
-        matching.forEach((name, idx) => {
-          if (idx < maxItems - 1) {
-            renderItem(node, name, path);
-            count++;
-          } else if (idx === maxItems - 1) {
-            const more = document.createElement("div");
-            more.textContent = "...";
-            viewer.appendChild(more);
-            count++;
-          }
-        });
-      }
-
-      // If file and no search, preview
-      if (!query && node === "file") {
+      // Preview single file if not searching
+      if (!q && fsStore[env][path] === "file") {
         docView.textContent = `Contents of ${path}`;
         viewer.appendChild(docView);
         copyBtn.style.display = "inline-block";
       }
     }
 
-    // Render individual row
-    function renderItem(node, name, basePath) {
-      const full = basePath + (basePath.endsWith(":") ? "/" : "/") + name;
-      const entry = node[name];
-      const row = document.createElement("div");
-      row.className = "file-item";
-
-      const a = document.createElement("a");
-      a.textContent = (entry === "file" ? icons.file : icons.folder) + " " + name;
-      a.onclick = e => { e.preventDefault(); navigate(full); };
-      row.appendChild(a);
-
-      if (entry === "file") {
-        const dl = document.createElement("button");
-        dl.className = "download-btn";
-        dl.textContent = "📥";
-        dl.onclick = () => window.open(`https://whompinc.github.io/${full}`, "_blank");
-        row.appendChild(dl);
-      }
-      viewer.appendChild(row);
-    }
+    // Search function
+    searchBtn.onclick = () => {
+      const q = searchEl.value.trim().toLowerCase();
+      renderContents(current);
+    };
 
     // Copy preview
     copyBtn.onclick = () => navigator.clipboard.writeText(docView.textContent);
 
-    // Search button
-    searchBtn.onclick = () => navigate(current);
-    searchEl.placeholder = `[${env}] Search...`;
-    searchEl.oninput = () => { if (!searchEl.value) navigate(current); };
+    // Highlight header on click
+    pathDisp.onclick = () => header.classList.toggle("highlight");
 
-    // Header highlight toggle
-    header.onclick = e => { if (e.target === pathDisp) header.classList.toggle("highlight"); };
-
-    // Environment toggle and rebuild tree
+    // Env toggle
     envToggle.onclick = () => {
       env = env === "LOCAL" ? "VIRTUAL" : "LOCAL";
       envToggle.textContent = `[${env}]`;
-      treeRoot.innerHTML = "";
-      buildTree(treeData[env], treeRoot, env);
       navigate(env === "LOCAL" ? "C:" : "VIRTUAL:");
     };
-    envToggle.textContent = `[${env}]`;
 
-    // Initialize
+    // Init
     window.onload = () => {
-      buildTree(treeData[env], treeRoot, env);
+      buildTree(treeData["C:"], treeRoot, "C:");
       navigate(current);
     };
   </script>
