@@ -1,105 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>SDU Shield CLI File Explorer</title>
+  <meta charset="UTF-8">
+  <title>SDU Shield Explorer</title>
   <style>
-    body {
-      font-family: monospace;
-      background: #333;
-      color: #fff;
-      margin: 0;
-      padding: 20px;
+    html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
+    .grid {
+      display: grid;
+      grid-template-columns: 200px 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "shortcuts path contents"
+        "shortcuts viewer viewer";
+      height:100%;
     }
-    h1 {
-      text-align: center;
-      color: #81c784;
+    /* Panes */
+    #shortcuts { grid-area: shortcuts; background:#2d2d2d; padding:10px; overflow:auto; }
+    #path      { grid-area: path; border-bottom:1px solid #444; padding:8px; }
+    #contents  { grid-area: contents; padding:8px; overflow:auto; border-left:1px solid #444; border-bottom:1px solid #444; }
+    #viewer    { grid-area: viewer; padding:8px; overflow:auto; }
+    /* Search */
+    #search { width:100%; padding:4px; margin-bottom:8px; background:#333; border:1px solid #444; color:#ddd; }
+    /* Tree */
+    ul.tree { list-style:none; padding-left:16px; }
+    ul.tree li { cursor:pointer; user-select:none; }
+    ul.tree li::before { content: '► '; color:#6a9955; }
+    ul.tree li.expanded::before { content: '▼ '; color:#6a9955; }
+    ul.tree ul { display:none; list-style:none; margin:4px 0 4px 16px; padding:0; }
+    ul.tree ul.visible { display:block; }
+    /* Icons */
+    .icon { width:1em; display:inline-block; }
+    /* File list */
+    .file-item { margin:4px 0; display:flex; justify-content:space-between; }
+    .file-item a { color:#569cd6; text-decoration:none; }
+    .file-item a:hover { text-decoration:underline; }
+    .download-btn, #copy-btn {
+      background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer;
     }
-    .tree {
-      margin: 0;
-      padding-left: 10px;
-    }
-    .folder {
-      margin-left: 20px;
-      cursor: pointer;
-      color: #ffeb3b;
-    }
-    .file {
-      color: #81c784;
-      padding-left: 20px;
-      margin-bottom: 5px;
-    }
-    .file a {
-      text-decoration: none;
-      color: #81c784;
-    }
-    .file a:hover {
-      text-decoration: underline;
-    }
-    .download-btn {
-      margin-left: 20px;
-      padding: 5px;
-      background-color: #4caf50;
-      border: none;
-      color: white;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    .download-btn:hover {
-      background-color: #388e3c;
-    }
-    .folder-contents {
-      display: none;
-      padding-left: 20px;
-    }
-    .expanded .folder-contents {
-      display: block;
-    }
-    .expanded::before {
-      content: "▼ ";
-      color: #ff5722;
-    }
-    .collapsed::before {
-      content: "► ";
-      color: #ff5722;
-    }
+    .download-btn:hover, #copy-btn:hover { background:#1177bb; }
+    /* Viewer */
+    #doc-view { background:#252526; padding:8px; border:1px solid #444; height:100%; overflow:auto; white-space:pre-wrap; }
   </style>
 </head>
 <body>
-  <h1>SDU Shield File Explorer</h1>
-
-  <div class="tree">
-    <div class="folder collapsed" onclick="toggleFolder(this)">
-      / 
-      <div class="folder-contents">
-        <div class="folder collapsed" onclick="toggleFolder(this)">
-          Files
-          <div class="folder-contents">
-            <div class="file"><a href="https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html" target="_blank">sdu_shield_file_tree_downloadable.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html'">Download</button></div>
-            <div class="file"><a href="https://whompinc.github.io/Files/index.html" target="_blank">index.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/index.html'">Download</button></div>
-            <div class="file"><a href="https://whompinc.github.io/Files/open_link.html" target="_blank">open_link.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/open_link.html'">Download</button></div>
-            <div class="file"><a href="https://whompinc.github.io/Files/directory_GPT.html" target="_blank">directory_GPT.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/directory_GPT.html'">Download</button></div>
-          </div>
-        </div>
-        <div class="folder collapsed" onclick="toggleFolder(this)">
-          SDU-Shield
-          <div class="folder-contents">
-            <div class="file"><a href="https://whompinc.github.io/SDU-Shield/" target="_blank">index.html (Launcher)</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/SDU-Shield/'">Download</button></div>
-          </div>
-        </div>
-      </div>
+  <div class="grid">
+    <div id="shortcuts">
+      <h3>📌 Shortcuts</h3>
+      <!-- Edit these links without touching anything else -->
+      <ul>
+        <li><a onclick="navigate('')">/ (root)</a></li>
+        <li><a onclick="navigate('Files')">Files</a></li>
+        <li><a onclick="navigate('SDU-Shield')">SDU-Shield</a></li>
+      </ul>
+    </div>
+    <div id="path">
+      <strong>Path:</strong> <span id="current-path">/</span>
+    </div>
+    <div id="contents">
+      <input id="search" placeholder="Search..." oninput="renderContents()" />
+      <ul id="tree" class="tree"></ul>
+    </div>
+    <div id="viewer">
+      <div id="doc-view"></div>
+      <button id="copy-btn" style="display:none" onclick="copyText()">Copy</button>
     </div>
   </div>
 
   <script>
-    function toggleFolder(element) {
-      const folderContents = element.querySelector('.folder-contents');
-      element.classList.toggle('expanded');
-      element.classList.toggle('collapsed');
-      if (folderContents) {
-        folderContents.style.display = folderContents.style.display === 'block' ? 'none' : 'block';
+    // ─── file system definition ─────────────────────────────────────────────────
+    // You can edit this JSON to add/remove folders & files without touching HTML.
+    const fs = {
+      "": { type:"folder", children: ["Files","SDU-Shield"] },
+      "Files": { type:"folder", children: ["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
+      "Files/sdu_shield_file_tree.html": { type:"file" },
+      "Files/open_link.html":            { type:"file" },
+      "Files/directory_GPT.html":        { type:"file" },
+      "Files/README.md":                 { type:"file" },
+      "SDU-Shield": { type:"folder", children:["index.html"] },
+      "SDU-Shield/index.html": { type:"file" }
+    };
+
+    // Icons mapping (easy to extend)
+    const icons = {
+      "folder":"📁", "txt":"📝", "md":"📄", "py":"🐍",
+      "html":"🌐", "c":"🔧", "h":"🔨", "json":"🗒️",
+      "ini":"⚙️", "default":"📦"
+    };
+
+    let current = ""; // current folder path
+
+    // ─── build the tree in the left pane ─────────────────────────────────────────
+    function buildTree(parentPath, ul) {
+      for(let name of fs[parentPath].children||[]) {
+        const full = parentPath? parentPath+"/"+name : name;
+        const li = document.createElement("li");
+        li.textContent = icons[ fs[full].type==="folder"? "folder" : (name.split(".").pop()||"default") ] + " " + name;
+        li.onclick = e=>{ e.stopPropagation(); navigate(full); };
+        ul.appendChild(li);
+        if(fs[full].type==="folder") {
+          li.classList.add("collapsed");
+          const childUl = document.createElement("ul");
+          childUl.className="folder-contents";
+          li.appendChild(childUl);
+          buildTree(full,childUl);
+        }
       }
     }
+
+    // ─── render contents in the top-right pane ───────────────────────────────────
+    function renderContents() {
+      const tree = document.getElementById("tree");
+      tree.innerHTML="";
+      const search = document.getElementById("search").value.toLowerCase();
+      for(let name of fs[current].children||[]) {
+        if(search && !name.toLowerCase().includes(search)) continue;
+        const full = current? current+"/"+name : name;
+        const li = document.createElement("li");
+        li.textContent = icons[ fs[full].type==="folder"? "folder" : (name.split(".").pop()||"default") ] + " ";
+        const a = document.createElement("a");
+        a.href="#"; a.textContent=name;
+        a.onclick=e=>{e.preventDefault(); navigate(full);};
+        li.appendChild(a);
+        if(fs[full].type==="file") {
+          const btn = document.createElement("button");
+          btn.className="download-btn";
+          btn.textContent="DL";
+          btn.onclick=()=>{ window.open("https://whompinc.github.io/"+full, "_blank"); };
+          li.appendChild(btn);
+        }
+        tree.appendChild(li);
+      }
+    }
+
+    // ─── navigation handler ───────────────────────────────────────────────────────
+    function navigate(path) {
+      current = (fs[path]&&fs[path].type==="folder")? path : path.split("/").slice(0,-1).join("/");
+      document.getElementById("current-path").textContent = path||"/";
+      renderContents();
+      renderViewer(path);
+    }
+
+    // ─── render file viewer (bottom pane) ─────────────────────────────────────────
+    function renderViewer(path) {
+      const dv = document.getElementById("doc-view");
+      const copy = document.getElementById("copy-btn");
+      if(fs[path] && fs[path].type==="file") {
+        fetch("https://whompinc.github.io/"+path)
+          .then(r=>r.text())
+          .then(txt=>{
+            dv.textContent = txt;
+            copy.style.display="inline-block";
+          });
+      } else {
+        dv.textContent = "";
+        copy.style.display="none";
+      }
+    }
+
+    // ─── copy viewer text ─────────────────────────────────────────────────────────
+    function copyText() {
+      const dv = document.getElementById("doc-view");
+      navigator.clipboard.writeText(dv.textContent);
+    }
+
+    // ─── initialize ───────────────────────────────────────────────────────────────
+    window.onload = ()=>{
+      buildTree("", document.querySelector("#shortcuts ul")/*reuse tree for shortcuts*/);
+      navigate("");
+    };
   </script>
 </body>
 </html>
