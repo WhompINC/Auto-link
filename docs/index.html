@@ -7,38 +7,37 @@
     html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
     .grid {
       display: grid;
-      grid-template-columns: 200px 1fr 1fr;
+      grid-template-columns: 200px 2fr 2fr;
       grid-template-rows: auto 1fr;
       grid-template-areas:
-        "shortcuts controls contents"
-        "shortcuts viewer viewer";
+        "shortcuts path search"
+        "shortcuts contents viewer";
       height:100%;
     }
     #shortcuts { grid-area: shortcuts; background:#2d2d2d; padding:10px; overflow:auto; }
-    #controls  { grid-area: controls; border-bottom:1px solid #444; padding:8px; display:flex; align-items:center; }
+    #path      { grid-area: path; border-bottom:1px solid #444; padding:8px; display:flex; align-items:center; }
+    #search    { grid-area: search; padding:6px; margin:8px; background:#333; border:1px solid #444; color:#ddd; width:90%; }
     #contents  { grid-area: contents; padding:8px; overflow:auto; border-left:1px solid #444; border-bottom:1px solid #444; }
     #viewer    { grid-area: viewer; padding:8px; overflow:auto; }
-    #search { flex:1; padding:4px; margin-right:8px; background:#333; border:1px solid #444; color:#ddd; }
-    .env-btn { padding:4px 8px; margin-right:4px; background:#444; border:none; color:#fff; cursor:pointer; }
-    .env-btn.active { background:#0e639c; }
     ul.tree { list-style:none; padding-left:16px; }
     ul.tree li { cursor:pointer; user-select:none; margin:4px 0; }
     ul.tree li::before { content: '► '; color:#6a9955; }
     ul.tree li.expanded::before { content: '▼ '; color:#6a9955; }
     ul.tree ul { display:none; margin:4px 0 4px 16px; padding:0; }
-    .icon { width:1em; display:inline-block; }
     .file-item { margin:4px 0; display:flex; justify-content:space-between; }
     .file-item a { color:#569cd6; text-decoration:none; }
-    .download-btn, #copy-btn, button.conf {
-      background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer;
-    }
+    .download-btn, #copy-btn, button.conf { background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer; }
     button.conf { width:100%; margin-top:8px; }
     #doc-view { background:#252526; padding:8px; border:1px solid #444; height:100%; overflow:auto; white-space:pre-wrap; }
+    /* Shortcuts anchor color updated */
+    #shortcuts a { color: #9CDCFE; text-decoration:none; display:block; margin:4px 0; }
+    #shortcuts a:hover { text-decoration:underline; }
+    /* Breadcrumb click style */
+    #current-path span { margin-right:4px; cursor:pointer; color:#569cd6; }
   </style>
 </head>
 <body>
   <div class="grid">
-    <!-- Shortcuts & Config -->
     <div id="shortcuts">
       <h3>📌 Shortcuts</h3>
       <ul id="sc-list"></ul>
@@ -46,37 +45,29 @@
       <h3 style="margin-top:16px">🔧 Icons</h3>
       <button class="conf" onclick="editIcons()">Edit Icons…</button>
     </div>
-
-    <!-- Controls: Environment + Search -->
-    <div id="controls">
-      <button id="env-local" class="env-btn" onclick="setEnv('LOCAL')">[LOCAL]</button>
-      <button id="env-virtual" class="env-btn" onclick="setEnv('VIRTUAL')">[VIRTUAL]</button>
-      <input id="search" placeholder="Search files & folders…" oninput="renderContents()" />
+    <div id="path">
+      <strong>Path:</strong> <span id="current-path"></span>
     </div>
-
-    <!-- Contents: Tree or Search Results -->
+    <input id="search" placeholder="Search files & folders…" oninput="renderContents()" />
     <div id="contents">
       <ul id="tree" class="tree"></ul>
       <ul id="search-results" style="display:none; list-style:none; padding:0;"></ul>
     </div>
-
-    <!-- Viewer + Copy -->
     <div id="viewer">
       <div id="doc-view"></div>
       <button id="copy-btn" style="display:none" onclick="copyText()">Copy</button>
     </div>
   </div>
-
   <script>
-    // ─── Definitions & Storage ───────────────────────────────────────────
+    // Definitions & storage
     const DEFAULT_FS = {
       LOCAL: {
         "C:": { type:"folder", children:["Files","Projects"] },
-        "C:/Files":      { type:"folder", children:["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
+        "C:/Files": { type:"folder", children:["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
         "C:/Files/sdu_shield_file_tree.html": { type:"file" },
-        "C:/Files/open_link.html":            { type:"file" },
-        "C:/Files/directory_GPT.html":        { type:"file" },
-        "C:/Files/README.md":                 { type:"file" },
+        "C:/Files/open_link.html": { type:"file" },
+        "C:/Files/directory_GPT.html": { type:"file" },
+        "C:/Files/README.md": { type:"file" },
         "C:/Projects": { type:"folder", children:[] }
       },
       VIRTUAL: {
@@ -87,46 +78,39 @@
       }
     };
     const DEFAULT_ICONS = { folder:"📁", txt:"📝", md:"📄", py:"🐍", html:"🌐", c:"🔧", h:"🔨", json:"🗒️", ini:"⚙️", default:"📦" };
-
     let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
-    let icons  = JSON.parse(localStorage.getItem("icons")||"{}");
-
-    // initialize fs and icons if missing
-    if(!fsStore.LOCAL)  fsStore = JSON.parse(JSON.stringify(DEFAULT_FS));
+    let icons   = JSON.parse(localStorage.getItem("icons")||"{}");
+    if(!fsStore.LOCAL) fsStore = DEFAULT_FS;
     if(Object.keys(icons).length===0) icons = DEFAULT_ICONS;
     localStorage.setItem("fsStore", JSON.stringify(fsStore));
     localStorage.setItem("icons", JSON.stringify(icons));
+    let env = localStorage.getItem("env")||"LOCAL";
+    let current = env==="LOCAL"? "C:" : "VIRTUAL:";
 
-    let env     = localStorage.getItem("env") || "LOCAL";
-    let current = env==="LOCAL"? "C:": "VIRTUAL:";
-
-    // ─── UI Helpers ────────────────────────────────────────────────────────
     function setEnv(e) {
       env = e; localStorage.setItem("env", env);
-      document.getElementById("env-local").classList.toggle("active", env==="LOCAL");
-      document.getElementById("env-virtual").classList.toggle("active", env==="VIRTUAL");
-      current = env==="LOCAL"? "C:" : "VIRTUAL:";
+      current = (env === "LOCAL" ? "C:" : "VIRTUAL:");
       navigate(current);
     }
 
     function editShortcuts() {
       const list = fsStore[env][current].children.join(",");
       const inp  = prompt("Edit shortcuts for this folder, comma-separated:", list);
-      if(inp!==null) {
-        fsStore[env][current].children = inp.split(",").map(s=>s.trim()).filter(s=>s);
+      if(inp !== null) {
+        fsStore[env][current].children = inp.split(",").map(s => s.trim()).filter(s => s);
         localStorage.setItem("fsStore", JSON.stringify(fsStore));
-        renderShortcuts();
-        renderContents();
+        renderShortcuts(); renderContents();
       }
     }
+
     function editIcons() {
-      const pairs = Object.entries(icons).map(([k,v])=>`${k}:${v}`).join(",");
-      const inp   = prompt("Edit icons ext:emoji,comma-separated:", pairs);
-      if(inp!==null) {
+      const pairs = Object.entries(icons).map(([k, v]) => k + ":" + v).join(",");
+      const inp   = prompt("Edit icons ext:emoji, comma-separated:", pairs);
+      if(inp !== null) {
         icons = {};
-        inp.split(",").forEach(pair=>{
-          const [k,v]=pair.split(":");
-          if(k&&v) icons[k.trim()]=v.trim();
+        inp.split(",").forEach(pair => {
+          const [k, v] = pair.split(":");
+          if(k && v) icons[k.trim()] = v.trim();
         });
         localStorage.setItem("icons", JSON.stringify(icons));
         renderContents();
@@ -137,107 +121,97 @@
       navigator.clipboard.writeText(document.getElementById("doc-view").textContent);
     }
 
-    // ─── Tree & Contents Rendering ───────────────────────────────────────────
     function buildTree(path, ul) {
-      (fsStore[env][path].children||[]).forEach(name => {
-        const full = path + (path.endsWith(":")? "/" : "/") + name; 
+      (fsStore[env][path].children || []).forEach(name => {
+        const full  = path + (path.endsWith(":") ? "/" : "/") + name;
         const entry = fsStore[env][full];
-        const ext   = entry.type==="folder"? "folder" : (name.split(".").pop()||"default");
+        const ext   = entry.type === "folder" ? "folder" : (name.split(".").pop() || "default");
         const li    = document.createElement("li");
         li.textContent = icons[ext] + " " + name;
-        li.onclick = e=>{ e.stopPropagation(); navigate(full); };
+        li.onclick = e => { e.stopPropagation(); navigate(full); };
         ul.appendChild(li);
-        if(entry.type==="folder"){
+        if(entry.type === "folder") {
           li.classList.add("collapsed");
-          const child = document.createElement("ul");
-          li.appendChild(child);
-          buildTree(full, child);
+          const childUl = document.createElement("ul");
+          li.appendChild(childUl);
+          buildTree(full, childUl);
         }
       });
     }
 
-    function renderShortcuts(){
-      const ul= document.getElementById("sc-list"); ul.innerHTML="";
-      (fsStore[env][current].children||[]).forEach(name=>{
-        const li=document.createElement("li");
-        const a =document.createElement("a");
-        a.href="#"; a.textContent=name;
-        a.onclick=e=>{ e.preventDefault(); navigate(current + "/" + name); };
-        li.appendChild(a);
-        ul.appendChild(li);
+    function renderShortcuts() {
+      const ul = document.getElementById("sc-list"); ul.innerHTML = "";
+      (fsStore[env][current].children || []).forEach(name => {
+        const li = document.createElement("li");
+        const a  = document.createElement("a");
+        a.href = "#"; a.textContent = name;
+        a.onclick = e => { e.preventDefault(); navigate(current + (current.endsWith(":") ? "/" : "/") + name); };
+        li.appendChild(a); ul.appendChild(li);
       });
     }
 
-    function renderContents(){
-      const q = document.getElementById("search").value.trim().toLowerCase();
-      const tree = document.getElementById("tree");
-      const sr   = document.getElementById("search-results");
-      tree.style.display = q? "none":"block";
-      sr  .style.display = q? "block":"none";
+    function renderContents() {
+      const q   = document.getElementById("search").value.trim().toLowerCase();
+      const tree= document.getElementById("tree"),
+            sr  = document.getElementById("search-results");
+      tree.style.display = q ? "none" : "block";
+      sr  .style.display = q ? "block": "none";
       tree.innerHTML = ""; sr.innerHTML = "";
-
-      if(q){
-        // global search through all paths
-        Object.keys(fsStore[env]).forEach(full=>{
+      if(q) {
+        const itemHeight  = 24;
+        const pathHeight  = document.getElementById("path").getBoundingClientRect().bottom;
+        const avail       = window.innerHeight - pathHeight - 8;
+        const maxItems    = Math.floor(avail / itemHeight);
+        let count = 0;
+        Object.keys(fsStore[env]).forEach(full => {
           const name = full.split("/").pop();
-          if(name.toLowerCase().includes(q)){
-            const entry = fsStore[env][full];
-            const li = document.createElement("li");
-            li.className = "file-item";
-            const a  = document.createElement("a");
-            a.href="#"; a.textContent=full;
-            a.onclick=e=>{ e.preventDefault(); navigate(full); };
-            li.appendChild(a);
-            if(entry.type==="file"){
-              const dl = document.createElement("button");
-              dl.className="download-btn"; dl.textContent="DL";
-              dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`, "_blank");
-              li.appendChild(dl);
+          if(name.toLowerCase().includes(q)) {
+            if(count < maxItems - 1) {
+              const li=document.createElement("li"); li.className="file-item";
+              const a =document.createElement("a"); a.href="#"; a.textContent=full;
+              a.onclick=e=>{e.preventDefault(); navigate(full);} ; li.appendChild(a);
+              if(fsStore[env][full].type === "file") {
+                const btn=document.createElement("button"); btn.className="download-btn";
+                btn.textContent="DL"; btn.onclick=()=>window.open(`https://whompinc.github.io/${full}`);
+                li.appendChild(btn);
+              }
+              sr.appendChild(li);
+              count++;
+            } else if(count === maxItems -1) {
+              const li=document.createElement("li"); li.className="file-item"; li.textContent="...";
+              sr.appendChild(li);
+              count++;
             }
-            sr.appendChild(li);
           }
         });
       } else {
-        // normal folder contents
-        (fsStore[env][current].children||[]).forEach(name=>{
-          const full = current + (current.endsWith(":")? "/" : "/") + name;
-          const entry = fsStore[env][full];
-          const li = document.createElement("li");
-          li.className="file-item";
-          const a  = document.createElement("a");
-          a.href="#"; a.textContent=name;
-          a.onclick=e=>{ e.preventDefault(); navigate(full); };
-          li.appendChild(a);
-          if(entry.type==="file"){
-            const dl = document.createElement("button");
-            dl.className="download-btn"; dl.textContent="DL";
-            dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`, "_blank");
-            li.appendChild(dl);
+        (fsStore[env][current].children || []).forEach(name => {
+          const full = current + (current.endsWith(":")?"/":"/") + name;
+          const li   = document.createElement("li"); li.className="file-item";
+          const a    = document.createElement("a"); a.href="#"; a.textContent=name;
+          a.onclick=e=>{e.preventDefault(); navigate(full);} ; li.appendChild(a);
+          if(fsStore[env][full].type === "file") {
+            const btn=document.createElement("button"); btn.className="download-btn";
+            btn.textContent="DL"; btn.onclick=()=>window.open(`https://whompinc.github.io/${full}`);
+            li.appendChild(btn);
           }
           tree.appendChild(li);
         });
       }
     }
 
-    // ─── Viewer ────────────────────────────────────────────────────────────────
-    function renderViewer(path){
-      const dv = document.getElementById("doc-view");
-      const cb = document.getElementById("copy-btn");
-      const entry = fsStore[env][path];
-      if(entry && entry.type==="file"){
+    function renderViewer(path) {
+      const dv=document.getElementById("doc-view"), cb=document.getElementById("copy-btn");
+      if(fsStore[env][path] && fsStore[env][path].type === "file") {
         fetch(`https://whompinc.github.io/${path}`)
           .then(r=>r.text())
           .then(txt=>{ dv.textContent=txt; cb.style.display="inline-block"; });
-      } else {
-        dv.textContent = ""; cb.style.display="none";
-      }
-      document.getElementById("current-path").textContent = path;
+      } else { dv.textContent=""; cb.style.display="none"; }
+      renderPath(path);
     }
 
-    // ─── Navigation ───────────────────────────────────────────────────────────
-    function navigate(path){
-      // if file clicked, show it, but keep current folder
-      if(fsStore[env][path] && fsStore[env][path].type==="folder"){
+    function navigate(path) {
+      if(fsStore[env][path] && fsStore[env][path].type === "folder") {
         current = path;
         renderShortcuts();
       }
@@ -245,10 +219,20 @@
       renderViewer(path);
     }
 
-    // ─── Initialization ───────────────────────────────────────────────────────
-    window.onload = ()=>{
+    function renderPath(path) {
+      const el=document.getElementById("current-path"); el.innerHTML="";
+      const parts=path.split("/"); let acc="";
+      parts.forEach((p,i) => {
+        acc += (i>0?"/":"") + p;
+        const span=document.createElement("span"); span.textContent=p||"/";
+        span.onclick=()=>navigate(acc);
+        el.appendChild(span);
+      });
+    }
+
+    window.onload = () => {
       setEnv(env);
-      buildTree(env==="LOCAL"? "C:":"VIRTUAL:", document.getElementById("tree"));
+      buildTree(env === "LOCAL" ? "C:" : "VIRTUAL:", document.getElementById("tree"));
       navigate(current);
     };
   </script>
