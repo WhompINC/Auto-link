@@ -1,59 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>SDU Shield Reference Template</title>
+  <meta charset="UTF-8">
+  <title>SDU Shield File Explorer</title>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f8f8f8;
-      margin: 2rem;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    summary {
-      cursor: pointer;
-      font-weight: bold;
+    h1 {
+      margin: 20px;
+      color: #333;
     }
-    ul {
+    .container {
+      width: 80%;
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .file-list {
       list-style: none;
-      padding-left: 1.5rem;
+      padding: 0;
     }
-    a {
-      text-decoration: none;
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .file-item:hover {
+      background-color: #f1f1f1;
+    }
+    .file-name {
       color: #0366d6;
+      text-decoration: none;
+      font-size: 16px;
     }
-    a:hover {
+    .file-name:hover {
       text-decoration: underline;
+    }
+    .file-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .download-btn {
+      padding: 5px 10px;
+      background-color: #0366d6;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .download-btn:hover {
+      background-color: #004bb5;
+    }
+    .file-type {
+      font-size: 14px;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <h1>SDU Shield Reference Template</h1>
-  <details open>
-    <summary>📁 include</summary>
-    <ul>
-      <li><a href="#">lcd.h</a></li>
-      <li><a href="#">lm75.h</a></li>
-      <li><a href="#">usart.h</a></li>
-      <li><a href="#">i2cmaster.h</a></li>
+
+  <h1>SDU Shield File Explorer</h1>
+  <div class="container">
+    <ul class="file-list">
+      <li class="file-item">
+        <span class="file-name"><a href="#">lcd.h</a></span>
+        <span class="file-actions">
+          <span class="file-type">Header File</span>
+          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/lcd.h'">Download</button>
+        </span>
+      </li>
+      <li class="file-item">
+        <span class="file-name"><a href="#">main.c</a></span>
+        <span class="file-actions">
+          <span class="file-type">C Source File</span>
+          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/main.c'">Download</button>
+        </span>
+      </li>
+      <li class="file-item">
+        <span class="file-name"><a href="#">README.md</a></span>
+        <span class="file-actions">
+          <span class="file-type">Markdown File</span>
+          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/README.md'">Download</button>
+        </span>
+      </li>
+      <li class="file-item">
+        <span class="file-name"><a href="#">platformio.ini</a></span>
+        <span class="file-actions">
+          <span class="file-type">Configuration File</span>
+          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/platformio.ini'">Download</button>
+        </span>
+      </li>
     </ul>
-  </details>
-  <details open>
-    <summary>📁 src</summary>
-    <ul>
-      <li><a href="#">main.c</a></li>
-    </ul>
-  </details>
-  <details open>
-    <summary>📁 docs</summary>
-    <ul>
-      <li><a href="#">README.md</a></li>
-    </ul>
-  </details>
-  <details open>
-    <summary>📁 root</summary>
-    <ul>
-      <li><a href="#">platformio.ini</a></li>
-    </ul>
-  </details>
+  </div>
+
 </body>
 </html>
