@@ -27,14 +27,13 @@
     /* Header */
     #header { grid-area: header; display:flex; align-items:center; background:#333; padding:8px; border-bottom:1px solid #444; }
     #header.highlight { background:#444; }
-    #back-btn,#forward-btn,#env-toggle,#search-btn {
+    #back-btn, #forward-btn, #env-toggle, #search-btn {
       background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer;
     }
-    #back-btn.disabled,#forward-btn.disabled { opacity:.4; cursor:default; }
+    #back-btn.disabled, #forward-btn.disabled { opacity:.4; cursor:default; }
     #path-display {
-      flex-shrink:0; color:#569cd6; cursor:pointer; margin-right:16px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width:400px;
-      display:flex; align-items:center;
+      display:flex; align-items:center; color:#569cd6; cursor:pointer; margin-right:16px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width:500px; /* Increased width */
     }
     #path-display span { margin-right:4px; }
     #path-display span:hover { text-decoration:underline; }
@@ -42,22 +41,23 @@
     #search-btn { font-size:18px; padding:4px; }
     #search {
       flex:1; background:#222; color:#ddd; border:1px solid #444;
-      padding:4px 8px; margin-left:4px;
+      padding:4px 8px; margin-left:4px; max-width:300px; /* Decreased width */
     }
 
     /* Viewer */
     #controls { grid-area: controls; }
-    #viewer { grid-area: viewer; padding:12px; overflow-y:auto; background:#252526; }
+    #viewer { grid-area: viewer; padding:12px; overflow-y:auto; }
     .file-item {
       display:flex; justify-content:space-between; align-items:center;
       padding:6px 0; border-bottom:1px solid #2d2d2d;
     }
     .file-item a { color:#569cd6; text-decoration:none; font-size:16px; }
     .file-item a:hover { text-decoration:underline; }
-    .download-btn { background:transparent; border:none; font-size:20px; color:#0e639c; cursor:pointer; }
+    .download-btn {
+      background:transparent; border:none; font-size:20px; color:#0e639c; cursor:pointer;
+    }
     .download-btn:hover { color:#1177bb; }
 
-    /* Preview */
     #doc-view {
       white-space:pre-wrap; background:#252526; padding:8px; border:1px solid #444; margin-top:12px; min-height:200px;
     }
@@ -73,6 +73,7 @@
       <h3>📁 File Tree</h3>
       <ul id="path-tree"></ul>
     </div>
+
     <div id="header">
       <button id="back-btn">◀</button>
       <button id="forward-btn">▶</button>
@@ -81,7 +82,9 @@
       <button id="search-btn">🔍</button>
       <input id="search" placeholder="Search..." />
     </div>
+
     <div id="controls"></div>
+
     <div id="viewer">
       <div id="doc-view">Select a folder or file…</div>
       <button id="copy-btn">Copy</button>
@@ -90,39 +93,28 @@
 
   <script>
     const treeData = {
-      const treeData = {
-  "C:": {
-    "d": {
-      "Reports": {
-        "summary.txt": "file",
-        "analysis.md": "file",
-        "data.json": "file"
+      "C:": {
+        "1st semester p": {},
+        "ArduinoCodes": {
+          "ControllerArc": {
+            ".pio": {},
+            "build": { "nanoatmega.hex":"file","nanoatmega.bin":"file" },
+            "libdeps":{},".vscode":{},"__MACOSX":{},"include":{},"lib":{},
+            "src":{ "main.c":"file" },"test":{}
+          }
+        },"Virtual":{}
       },
-      "Scripts": {
-        "build.py": "file",
-        "deploy.sh": "file",
-        "config.ini": "file"
-      },
-      "Source": {
-        "main.c": "file",
-        "util.h": "file",
-        "util.c": "file"
-      },
-      "README.md": "file"
-    }
-  },
-  "VIRTUAL:": {
-    // keep or add similar dummy structure here
-  }
-};
-
+      "VIRTUAL:": {
+        "VirtualProject": {
+          "docs":{ "overview.md":"file" },
+          "src":{ "app.py":"file" }
         }
       }
     };
 
-    let env = localStorage.getItem("env")||"LOCAL",
-        current = localStorage.getItem("lastPath")||(env==="LOCAL"?"C:":"VIRTUAL:"),
-        hist = [], pos=-1;
+    let env = localStorage.getItem("env") || "LOCAL",
+        current = localStorage.getItem("lastPath") || (env==="LOCAL"?"C:":"VIRTUAL:"),
+        hist = [], pos = -1;
 
     const treeRoot = document.getElementById("path-tree"),
           pathDisp = document.getElementById("path-display"),
@@ -174,7 +166,8 @@
       if(push) pushHist(path);
       current=path;
       pathDisp.innerHTML="";
-      path.split("/").slice(-3).forEach((seg,i)=>{
+      const segs=path.split("/").slice(-3); // Only last 3 segments
+      segs.forEach((seg,i)=>{
         const sp=document.createElement("span");
         sp.textContent=seg;
         sp.onclick=()=> navigate(path.split("/").slice(0,i+1).join("/"));
