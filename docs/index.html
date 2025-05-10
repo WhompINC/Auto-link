@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SDU Shield Explorer</title>
+  <meta charset="UTF-8" />
+  <title>SDU Shield Explorer (Multi-Env & Search)</title>
   <style>
     html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
     .grid {
@@ -10,56 +10,57 @@
       grid-template-columns: 200px 1fr 1fr;
       grid-template-rows: auto 1fr;
       grid-template-areas:
-        "shortcuts path contents"
+        "shortcuts controls contents"
         "shortcuts viewer viewer";
       height:100%;
     }
-    /* Panes */
     #shortcuts { grid-area: shortcuts; background:#2d2d2d; padding:10px; overflow:auto; }
-    #path      { grid-area: path; border-bottom:1px solid #444; padding:8px; }
+    #controls  { grid-area: controls; border-bottom:1px solid #444; padding:8px; display:flex; align-items:center; }
     #contents  { grid-area: contents; padding:8px; overflow:auto; border-left:1px solid #444; border-bottom:1px solid #444; }
     #viewer    { grid-area: viewer; padding:8px; overflow:auto; }
-    /* Search */
-    #search { width:100%; padding:4px; margin-bottom:8px; background:#333; border:1px solid #444; color:#ddd; }
-    /* Tree */
+    #search { flex:1; padding:4px; margin-right:8px; background:#333; border:1px solid #444; color:#ddd; }
+    .env-btn { padding:4px 8px; margin-right:4px; background:#444; border:none; color:#fff; cursor:pointer; }
+    .env-btn.active { background:#0e639c; }
     ul.tree { list-style:none; padding-left:16px; }
-    ul.tree li { cursor:pointer; user-select:none; }
+    ul.tree li { cursor:pointer; user-select:none; margin:4px 0; }
     ul.tree li::before { content: '► '; color:#6a9955; }
     ul.tree li.expanded::before { content: '▼ '; color:#6a9955; }
-    ul.tree ul { display:none; list-style:none; margin:4px 0 4px 16px; padding:0; }
-    ul.tree ul.visible { display:block; }
-    /* Icons */
+    ul.tree ul { display:none; margin:4px 0 4px 16px; padding:0; }
     .icon { width:1em; display:inline-block; }
-    /* File list */
     .file-item { margin:4px 0; display:flex; justify-content:space-between; }
     .file-item a { color:#569cd6; text-decoration:none; }
-    .file-item a:hover { text-decoration:underline; }
-    .download-btn, #copy-btn {
+    .download-btn, #copy-btn, button.conf {
       background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer;
     }
-    .download-btn:hover, #copy-btn:hover { background:#1177bb; }
-    /* Viewer */
+    button.conf { width:100%; margin-top:8px; }
     #doc-view { background:#252526; padding:8px; border:1px solid #444; height:100%; overflow:auto; white-space:pre-wrap; }
   </style>
 </head>
 <body>
   <div class="grid">
+    <!-- Shortcuts & Config -->
     <div id="shortcuts">
       <h3>📌 Shortcuts</h3>
-      <!-- Edit these links without touching anything else -->
-      <ul>
-        <li><a onclick="navigate('')">/ (root)</a></li>
-        <li><a onclick="navigate('Files')">Files</a></li>
-        <li><a onclick="navigate('SDU-Shield')">SDU-Shield</a></li>
-      </ul>
+      <ul id="sc-list"></ul>
+      <button class="conf" onclick="editShortcuts()">Edit Shortcuts…</button>
+      <h3 style="margin-top:16px">🔧 Icons</h3>
+      <button class="conf" onclick="editIcons()">Edit Icons…</button>
     </div>
-    <div id="path">
-      <strong>Path:</strong> <span id="current-path">/</span>
+
+    <!-- Controls: Environment + Search -->
+    <div id="controls">
+      <button id="env-local" class="env-btn" onclick="setEnv('LOCAL')">[LOCAL]</button>
+      <button id="env-virtual" class="env-btn" onclick="setEnv('VIRTUAL')">[VIRTUAL]</button>
+      <input id="search" placeholder="Search files & folders…" oninput="renderContents()" />
     </div>
+
+    <!-- Contents: Tree or Search Results -->
     <div id="contents">
-      <input id="search" placeholder="Search..." oninput="renderContents()" />
       <ul id="tree" class="tree"></ul>
+      <ul id="search-results" style="display:none; list-style:none; padding:0;"></ul>
     </div>
+
+    <!-- Viewer + Copy -->
     <div id="viewer">
       <div id="doc-view"></div>
       <button id="copy-btn" style="display:none" onclick="copyText()">Copy</button>
@@ -67,106 +68,188 @@
   </div>
 
   <script>
-    // ─── file system definition ─────────────────────────────────────────────────
-    // You can edit this JSON to add/remove folders & files without touching HTML.
-    const fs = {
-      "": { type:"folder", children: ["Files","SDU-Shield"] },
-      "Files": { type:"folder", children: ["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
-      "Files/sdu_shield_file_tree.html": { type:"file" },
-      "Files/open_link.html":            { type:"file" },
-      "Files/directory_GPT.html":        { type:"file" },
-      "Files/README.md":                 { type:"file" },
-      "SDU-Shield": { type:"folder", children:["index.html"] },
-      "SDU-Shield/index.html": { type:"file" }
+    // ─── Definitions & Storage ───────────────────────────────────────────
+    const DEFAULT_FS = {
+      LOCAL: {
+        "C:": { type:"folder", children:["Files","Projects"] },
+        "C:/Files":      { type:"folder", children:["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
+        "C:/Files/sdu_shield_file_tree.html": { type:"file" },
+        "C:/Files/open_link.html":            { type:"file" },
+        "C:/Files/directory_GPT.html":        { type:"file" },
+        "C:/Files/README.md":                 { type:"file" },
+        "C:/Projects": { type:"folder", children:[] }
+      },
+      VIRTUAL: {
+        "VIRTUAL:": { type:"folder", children:["SDU-Shield","Virtual"] },
+        "VIRTUAL:/SDU-Shield": { type:"folder", children:["index.html"] },
+        "VIRTUAL:/SDU-Shield/index.html": { type:"file" },
+        "VIRTUAL:/Virtual": { type:"folder", children:[] }
+      }
     };
+    const DEFAULT_ICONS = { folder:"📁", txt:"📝", md:"📄", py:"🐍", html:"🌐", c:"🔧", h:"🔨", json:"🗒️", ini:"⚙️", default:"📦" };
 
-    // Icons mapping (easy to extend)
-    const icons = {
-      "folder":"📁", "txt":"📝", "md":"📄", "py":"🐍",
-      "html":"🌐", "c":"🔧", "h":"🔨", "json":"🗒️",
-      "ini":"⚙️", "default":"📦"
-    };
+    let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
+    let icons  = JSON.parse(localStorage.getItem("icons")||"{}");
 
-    let current = ""; // current folder path
+    // initialize fs and icons if missing
+    if(!fsStore.LOCAL)  fsStore = JSON.parse(JSON.stringify(DEFAULT_FS));
+    if(Object.keys(icons).length===0) icons = DEFAULT_ICONS;
+    localStorage.setItem("fsStore", JSON.stringify(fsStore));
+    localStorage.setItem("icons", JSON.stringify(icons));
 
-    // ─── build the tree in the left pane ─────────────────────────────────────────
-    function buildTree(parentPath, ul) {
-      for(let name of fs[parentPath].children||[]) {
-        const full = parentPath? parentPath+"/"+name : name;
-        const li = document.createElement("li");
-        li.textContent = icons[ fs[full].type==="folder"? "folder" : (name.split(".").pop()||"default") ] + " " + name;
+    let env     = localStorage.getItem("env") || "LOCAL";
+    let current = env==="LOCAL"? "C:": "VIRTUAL:";
+
+    // ─── UI Helpers ────────────────────────────────────────────────────────
+    function setEnv(e) {
+      env = e; localStorage.setItem("env", env);
+      document.getElementById("env-local").classList.toggle("active", env==="LOCAL");
+      document.getElementById("env-virtual").classList.toggle("active", env==="VIRTUAL");
+      current = env==="LOCAL"? "C:" : "VIRTUAL:";
+      navigate(current);
+    }
+
+    function editShortcuts() {
+      const list = fsStore[env][current].children.join(",");
+      const inp  = prompt("Edit shortcuts for this folder, comma-separated:", list);
+      if(inp!==null) {
+        fsStore[env][current].children = inp.split(",").map(s=>s.trim()).filter(s=>s);
+        localStorage.setItem("fsStore", JSON.stringify(fsStore));
+        renderShortcuts();
+        renderContents();
+      }
+    }
+    function editIcons() {
+      const pairs = Object.entries(icons).map(([k,v])=>`${k}:${v}`).join(",");
+      const inp   = prompt("Edit icons ext:emoji,comma-separated:", pairs);
+      if(inp!==null) {
+        icons = {};
+        inp.split(",").forEach(pair=>{
+          const [k,v]=pair.split(":");
+          if(k&&v) icons[k.trim()]=v.trim();
+        });
+        localStorage.setItem("icons", JSON.stringify(icons));
+        renderContents();
+      }
+    }
+
+    function copyText() {
+      navigator.clipboard.writeText(document.getElementById("doc-view").textContent);
+    }
+
+    // ─── Tree & Contents Rendering ───────────────────────────────────────────
+    function buildTree(path, ul) {
+      (fsStore[env][path].children||[]).forEach(name => {
+        const full = path + (path.endsWith(":")? "/" : "/") + name; 
+        const entry = fsStore[env][full];
+        const ext   = entry.type==="folder"? "folder" : (name.split(".").pop()||"default");
+        const li    = document.createElement("li");
+        li.textContent = icons[ext] + " " + name;
         li.onclick = e=>{ e.stopPropagation(); navigate(full); };
         ul.appendChild(li);
-        if(fs[full].type==="folder") {
+        if(entry.type==="folder"){
           li.classList.add("collapsed");
-          const childUl = document.createElement("ul");
-          childUl.className="folder-contents";
-          li.appendChild(childUl);
-          buildTree(full,childUl);
+          const child = document.createElement("ul");
+          li.appendChild(child);
+          buildTree(full, child);
         }
-      }
+      });
     }
 
-    // ─── render contents in the top-right pane ───────────────────────────────────
-    function renderContents() {
-      const tree = document.getElementById("tree");
-      tree.innerHTML="";
-      const search = document.getElementById("search").value.toLowerCase();
-      for(let name of fs[current].children||[]) {
-        if(search && !name.toLowerCase().includes(search)) continue;
-        const full = current? current+"/"+name : name;
-        const li = document.createElement("li");
-        li.textContent = icons[ fs[full].type==="folder"? "folder" : (name.split(".").pop()||"default") ] + " ";
-        const a = document.createElement("a");
+    function renderShortcuts(){
+      const ul= document.getElementById("sc-list"); ul.innerHTML="";
+      (fsStore[env][current].children||[]).forEach(name=>{
+        const li=document.createElement("li");
+        const a =document.createElement("a");
         a.href="#"; a.textContent=name;
-        a.onclick=e=>{e.preventDefault(); navigate(full);};
+        a.onclick=e=>{ e.preventDefault(); navigate(current + "/" + name); };
         li.appendChild(a);
-        if(fs[full].type==="file") {
-          const btn = document.createElement("button");
-          btn.className="download-btn";
-          btn.textContent="DL";
-          btn.onclick=()=>{ window.open("https://whompinc.github.io/"+full, "_blank"); };
-          li.appendChild(btn);
-        }
-        tree.appendChild(li);
+        ul.appendChild(li);
+      });
+    }
+
+    function renderContents(){
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const tree = document.getElementById("tree");
+      const sr   = document.getElementById("search-results");
+      tree.style.display = q? "none":"block";
+      sr  .style.display = q? "block":"none";
+      tree.innerHTML = ""; sr.innerHTML = "";
+
+      if(q){
+        // global search through all paths
+        Object.keys(fsStore[env]).forEach(full=>{
+          const name = full.split("/").pop();
+          if(name.toLowerCase().includes(q)){
+            const entry = fsStore[env][full];
+            const li = document.createElement("li");
+            li.className = "file-item";
+            const a  = document.createElement("a");
+            a.href="#"; a.textContent=full;
+            a.onclick=e=>{ e.preventDefault(); navigate(full); };
+            li.appendChild(a);
+            if(entry.type==="file"){
+              const dl = document.createElement("button");
+              dl.className="download-btn"; dl.textContent="DL";
+              dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`, "_blank");
+              li.appendChild(dl);
+            }
+            sr.appendChild(li);
+          }
+        });
+      } else {
+        // normal folder contents
+        (fsStore[env][current].children||[]).forEach(name=>{
+          const full = current + (current.endsWith(":")? "/" : "/") + name;
+          const entry = fsStore[env][full];
+          const li = document.createElement("li");
+          li.className="file-item";
+          const a  = document.createElement("a");
+          a.href="#"; a.textContent=name;
+          a.onclick=e=>{ e.preventDefault(); navigate(full); };
+          li.appendChild(a);
+          if(entry.type==="file"){
+            const dl = document.createElement("button");
+            dl.className="download-btn"; dl.textContent="DL";
+            dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`, "_blank");
+            li.appendChild(dl);
+          }
+          tree.appendChild(li);
+        });
       }
     }
 
-    // ─── navigation handler ───────────────────────────────────────────────────────
-    function navigate(path) {
-      current = (fs[path]&&fs[path].type==="folder")? path : path.split("/").slice(0,-1).join("/");
-      document.getElementById("current-path").textContent = path||"/";
+    // ─── Viewer ────────────────────────────────────────────────────────────────
+    function renderViewer(path){
+      const dv = document.getElementById("doc-view");
+      const cb = document.getElementById("copy-btn");
+      const entry = fsStore[env][path];
+      if(entry && entry.type==="file"){
+        fetch(`https://whompinc.github.io/${path}`)
+          .then(r=>r.text())
+          .then(txt=>{ dv.textContent=txt; cb.style.display="inline-block"; });
+      } else {
+        dv.textContent = ""; cb.style.display="none";
+      }
+      document.getElementById("current-path").textContent = path;
+    }
+
+    // ─── Navigation ───────────────────────────────────────────────────────────
+    function navigate(path){
+      // if file clicked, show it, but keep current folder
+      if(fsStore[env][path] && fsStore[env][path].type==="folder"){
+        current = path;
+        renderShortcuts();
+      }
       renderContents();
       renderViewer(path);
     }
 
-    // ─── render file viewer (bottom pane) ─────────────────────────────────────────
-    function renderViewer(path) {
-      const dv = document.getElementById("doc-view");
-      const copy = document.getElementById("copy-btn");
-      if(fs[path] && fs[path].type==="file") {
-        fetch("https://whompinc.github.io/"+path)
-          .then(r=>r.text())
-          .then(txt=>{
-            dv.textContent = txt;
-            copy.style.display="inline-block";
-          });
-      } else {
-        dv.textContent = "";
-        copy.style.display="none";
-      }
-    }
-
-    // ─── copy viewer text ─────────────────────────────────────────────────────────
-    function copyText() {
-      const dv = document.getElementById("doc-view");
-      navigator.clipboard.writeText(dv.textContent);
-    }
-
-    // ─── initialize ───────────────────────────────────────────────────────────────
+    // ─── Initialization ───────────────────────────────────────────────────────
     window.onload = ()=>{
-      buildTree("", document.querySelector("#shortcuts ul")/*reuse tree for shortcuts*/);
-      navigate("");
+      setEnv(env);
+      buildTree(env==="LOCAL"? "C:":"VIRTUAL:", document.getElementById("tree"));
+      navigate(current);
     };
   </script>
 </body>
