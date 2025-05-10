@@ -24,42 +24,82 @@
     ul.tree li::before { content: '► '; color:#6a9955; }
     ul.tree li.expanded::before { content: '▼ '; color:#6a9955; }
     ul.tree ul { display:none; margin:4px 0 4px 16px; padding:0; }
+    .icon { width:1em; display:inline-block; }
     .file-item { margin:4px 0; display:flex; justify-content:space-between; }
     .file-item a { color:#569cd6; text-decoration:none; }
-    .download-btn, #copy-btn, button.conf { background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer; }
-    button.conf { width:100%; margin-top:8px; }
+    .download-btn, #copy-btn, button.conf {
+      background:#0e639c; border:none; padding:2px 6px; color:#fff; border-radius:2px; cursor:pointer;
+    }
+    .download-btn { font-size: 18px; }
     #doc-view { background:#252526; padding:8px; border:1px solid #444; height:100%; overflow:auto; white-space:pre-wrap; }
-    /* Shortcuts anchor color updated */
-    #shortcuts a { color: #9CDCFE; text-decoration:none; display:block; margin:4px 0; }
+    /* Shortcuts color */
+    #shortcuts a { color: #9CDCFE; text-decoration:none; display:block; margin:4px 0; padding-left:10px; }
     #shortcuts a:hover { text-decoration:underline; }
     /* Breadcrumb click style */
     #current-path span { margin-right:4px; cursor:pointer; color:#569cd6; }
+    /* Control buttons */
+    #back-btn, #forward-btn { background:#444; padding:5px 12px; margin-right:5px; border:none; color:white; cursor:pointer; }
+    #back-btn:hover, #forward-btn:hover { background:#0e639c; }
+    /* Toggle button styles */
+    #env-toggle { margin-left:10px; cursor:pointer; padding:5px 15px; background-color: #444; color:white; }
+    #env-toggle.active { background-color: #0e639c; }
   </style>
 </head>
 <body>
   <div class="grid">
+    <!-- Shortcuts & Config -->
     <div id="shortcuts">
       <h3>📌 Shortcuts</h3>
       <ul id="sc-list"></ul>
-      <button class="conf" onclick="editShortcuts()">Edit Shortcuts…</button>
-      <h3 style="margin-top:16px">🔧 Icons</h3>
-      <button class="conf" onclick="editIcons()">Edit Icons…</button>
     </div>
+    
+    <!-- Controls: Path, Environment Switch, and Search -->
     <div id="path">
+      <button id="back-btn" onclick="goBack()">◀ Back</button>
+      <button id="forward-btn" onclick="goForward()">Forward ▶</button>
       <strong>Path:</strong> <span id="current-path"></span>
     </div>
-    <input id="search" placeholder="Search files & folders…" oninput="renderContents()" />
+
+    <input id="search" placeholder="🔍 Search…" oninput="renderContents()" />
+
     <div id="contents">
       <ul id="tree" class="tree"></ul>
       <ul id="search-results" style="display:none; list-style:none; padding:0;"></ul>
     </div>
+
     <div id="viewer">
       <div id="doc-view"></div>
       <button id="copy-btn" style="display:none" onclick="copyText()">Copy</button>
     </div>
   </div>
+
   <script>
-    // Definitions & storage
+    // History stack
+    let historyStack = [], historyPos = -1;
+    function pushHistory(path) {
+      historyStack = historyStack.slice(0, historyPos + 1);
+      historyStack.push(path);
+      historyPos++;
+      updateNavButtons();
+    }
+    function goBack() {
+      if(historyPos > 0) {
+        historyPos--;
+        navigate(historyStack[historyPos], false);
+      }
+    }
+    function goForward() {
+      if(historyPos < historyStack.length - 1) {
+        historyPos++;
+        navigate(historyStack[historyPos], false);
+      }
+    }
+    function updateNavButtons() {
+      document.getElementById('back-btn').disabled = historyPos <= 0;
+      document.getElementById('forward-btn').disabled = historyPos >= historyStack.length - 1;
+    }
+
+    // FS & Icons
     const DEFAULT_FS = {
       LOCAL: {
         "C:": { type:"folder", children:["Files","Projects"] },
@@ -78,107 +118,109 @@
       }
     };
     const DEFAULT_ICONS = { folder:"📁", txt:"📝", md:"📄", py:"🐍", html:"🌐", c:"🔧", h:"🔨", json:"🗒️", ini:"⚙️", default:"📦" };
-    let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
-    let icons   = JSON.parse(localStorage.getItem("icons")||"{}");
-    if(!fsStore.LOCAL) fsStore = DEFAULT_FS;
-    if(Object.keys(icons).length===0) icons = DEFAULT_ICONS;
+
+    let fsStore = JSON.parse(localStorage.getItem("fsStore") || "{}");
+    let icons = JSON.parse(localStorage.getItem("icons") || "{}");
+
+    if (!fsStore.LOCAL) fsStore = DEFAULT_FS;
+    if (Object.keys(icons).length === 0) icons = DEFAULT_ICONS;
     localStorage.setItem("fsStore", JSON.stringify(fsStore));
     localStorage.setItem("icons", JSON.stringify(icons));
-    let env = localStorage.getItem("env")||"LOCAL";
-    let current = env==="LOCAL"? "C:" : "VIRTUAL:";
 
+    let env = localStorage.getItem("env") || "LOCAL";
+    let current = env === "LOCAL" ? "C:" : "VIRTUAL:";
+
+    // Set Environment (LOCAL / VIRTUAL)
     function setEnv(e) {
-      env = e; localStorage.setItem("env", env);
+      env = e;
+      localStorage.setItem("env", env);
       current = (env === "LOCAL" ? "C:" : "VIRTUAL:");
+      document.getElementById("env-toggle").textContent = `[${env}]`;
       navigate(current);
     }
 
+    // Edit Shortcuts
     function editShortcuts() {
       const list = fsStore[env][current].children.join(",");
-      const inp  = prompt("Edit shortcuts for this folder, comma-separated:", list);
-      if(inp !== null) {
+      const inp = prompt("Edit shortcuts for this folder, comma-separated:", list);
+      if (inp !== null) {
         fsStore[env][current].children = inp.split(",").map(s => s.trim()).filter(s => s);
         localStorage.setItem("fsStore", JSON.stringify(fsStore));
-        renderShortcuts(); renderContents();
+        renderShortcuts();
+        renderContents();
       }
     }
 
+    // Edit Icons
     function editIcons() {
       const pairs = Object.entries(icons).map(([k, v]) => k + ":" + v).join(",");
-      const inp   = prompt("Edit icons ext:emoji, comma-separated:", pairs);
-      if(inp !== null) {
+      const inp = prompt("Edit icons ext:emoji, comma-separated:", pairs);
+      if (inp !== null) {
         icons = {};
         inp.split(",").forEach(pair => {
           const [k, v] = pair.split(":");
-          if(k && v) icons[k.trim()] = v.trim();
+          if (k && v) icons[k.trim()] = v.trim();
         });
         localStorage.setItem("icons", JSON.stringify(icons));
         renderContents();
       }
     }
 
-    function copyText() {
-      navigator.clipboard.writeText(document.getElementById("doc-view").textContent);
-    }
-
-    function buildTree(path, ul) {
-      (fsStore[env][path].children || []).forEach(name => {
-        const full  = path + (path.endsWith(":") ? "/" : "/") + name;
-        const entry = fsStore[env][full];
-        const ext   = entry.type === "folder" ? "folder" : (name.split(".").pop() || "default");
-        const li    = document.createElement("li");
-        li.textContent = icons[ext] + " " + name;
-        li.onclick = e => { e.stopPropagation(); navigate(full); };
-        ul.appendChild(li);
-        if(entry.type === "folder") {
-          li.classList.add("collapsed");
-          const childUl = document.createElement("ul");
-          li.appendChild(childUl);
-          buildTree(full, childUl);
-        }
-      });
-    }
-
+    // Render Shortcuts
     function renderShortcuts() {
-      const ul = document.getElementById("sc-list"); ul.innerHTML = "";
+      const ul = document.getElementById("sc-list");
+      ul.innerHTML = "";
       (fsStore[env][current].children || []).forEach(name => {
         const li = document.createElement("li");
-        const a  = document.createElement("a");
-        a.href = "#"; a.textContent = name;
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = name;
         a.onclick = e => { e.preventDefault(); navigate(current + (current.endsWith(":") ? "/" : "/") + name); };
-        li.appendChild(a); ul.appendChild(li);
+        li.appendChild(a);
+        ul.appendChild(li);
       });
     }
 
+    // Render Contents (with Search)
     function renderContents() {
-      const q   = document.getElementById("search").value.trim().toLowerCase();
-      const tree= document.getElementById("tree"),
-            sr  = document.getElementById("search-results");
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const tree = document.getElementById("tree");
+      const sr = document.getElementById("search-results");
       tree.style.display = q ? "none" : "block";
-      sr  .style.display = q ? "block": "none";
-      tree.innerHTML = ""; sr.innerHTML = "";
-      if(q) {
-        const itemHeight  = 24;
-        const pathHeight  = document.getElementById("path").getBoundingClientRect().bottom;
-        const avail       = window.innerHeight - pathHeight - 8;
-        const maxItems    = Math.floor(avail / itemHeight);
+      sr.style.display = q ? "block" : "none";
+      tree.innerHTML = "";
+      sr.innerHTML = "";
+
+      if (q) {
+        const itemHeight = 24;
+        const pathHeight = document.getElementById("path").getBoundingClientRect().bottom;
+        const avail = window.innerHeight - pathHeight - 8;
+        const maxItems = Math.floor(avail / itemHeight);
         let count = 0;
         Object.keys(fsStore[env]).forEach(full => {
           const name = full.split("/").pop();
-          if(name.toLowerCase().includes(q)) {
-            if(count < maxItems - 1) {
-              const li=document.createElement("li"); li.className="file-item";
-              const a =document.createElement("a"); a.href="#"; a.textContent=full;
-              a.onclick=e=>{e.preventDefault(); navigate(full);} ; li.appendChild(a);
-              if(fsStore[env][full].type === "file") {
-                const btn=document.createElement("button"); btn.className="download-btn";
-                btn.textContent="DL"; btn.onclick=()=>window.open(`https://whompinc.github.io/${full}`);
+          if (name.toLowerCase().includes(q)) {
+            if (count < maxItems - 1) {
+              const li = document.createElement("li");
+              li.className = "file-item";
+              const a = document.createElement("a");
+              a.href = "#";
+              a.textContent = full;
+              a.onclick = e => { e.preventDefault(); navigate(full); };
+              li.appendChild(a);
+              if (fsStore[env][full].type === "file") {
+                const btn = document.createElement("button");
+                btn.className = "download-btn";
+                btn.textContent = "📥";
+                btn.onclick = () => window.open(`https://whompinc.github.io/${full}`);
                 li.appendChild(btn);
               }
               sr.appendChild(li);
               count++;
-            } else if(count === maxItems -1) {
-              const li=document.createElement("li"); li.className="file-item"; li.textContent="...";
+            } else if (count === maxItems - 1) {
+              const li = document.createElement("li");
+              li.className = "file-item";
+              li.textContent = "...";
               sr.appendChild(li);
               count++;
             }
@@ -186,13 +228,19 @@
         });
       } else {
         (fsStore[env][current].children || []).forEach(name => {
-          const full = current + (current.endsWith(":")?"/":"/") + name;
-          const li   = document.createElement("li"); li.className="file-item";
-          const a    = document.createElement("a"); a.href="#"; a.textContent=name;
-          a.onclick=e=>{e.preventDefault(); navigate(full);} ; li.appendChild(a);
-          if(fsStore[env][full].type === "file") {
-            const btn=document.createElement("button"); btn.className="download-btn";
-            btn.textContent="DL"; btn.onclick=()=>window.open(`https://whompinc.github.io/${full}`);
+          const full = current + (current.endsWith(":") ? "/" : "/") + name;
+          const li = document.createElement("li");
+          li.className = "file-item";
+          const a = document.createElement("a");
+          a.href = "#";
+          a.textContent = name;
+          a.onclick = e => { e.preventDefault(); navigate(full); };
+          li.appendChild(a);
+          if (fsStore[env][full].type === "file") {
+            const btn = document.createElement("button");
+            btn.className = "download-btn";
+            btn.textContent = "📥";
+            btn.onclick = () => window.open(`https://whompinc.github.io/${full}`);
             li.appendChild(btn);
           }
           tree.appendChild(li);
@@ -200,18 +248,38 @@
       }
     }
 
+    // Render Viewer
     function renderViewer(path) {
-      const dv=document.getElementById("doc-view"), cb=document.getElementById("copy-btn");
-      if(fsStore[env][path] && fsStore[env][path].type === "file") {
+      const dv = document.getElementById("doc-view");
+      const cb = document.getElementById("copy-btn");
+      if (fsStore[env][path] && fsStore[env][path].type === "file") {
         fetch(`https://whompinc.github.io/${path}`)
-          .then(r=>r.text())
-          .then(txt=>{ dv.textContent=txt; cb.style.display="inline-block"; });
-      } else { dv.textContent=""; cb.style.display="none"; }
+          .then(r => r.text())
+          .then(txt => { dv.textContent = txt; cb.style.display = "inline-block"; });
+      } else {
+        dv.textContent = ""; cb.style.display = "none";
+      }
       renderPath(path);
     }
 
+    // Render Path
+    function renderPath(path) {
+      const el = document.getElementById("current-path");
+      el.innerHTML = "";
+      const parts = path.split("/");
+      let acc = "";
+      parts.forEach((p, i) => {
+        acc += (i > 0 ? "/" : "") + p;
+        const span = document.createElement("span");
+        span.textContent = p || "/";
+        span.onclick = () => navigate(acc);
+        el.appendChild(span);
+      });
+    }
+
+    // Navigate between directories
     function navigate(path) {
-      if(fsStore[env][path] && fsStore[env][path].type === "folder") {
+      if (fsStore[env][path] && fsStore[env][path].type === "folder") {
         current = path;
         renderShortcuts();
       }
@@ -219,17 +287,7 @@
       renderViewer(path);
     }
 
-    function renderPath(path) {
-      const el=document.getElementById("current-path"); el.innerHTML="";
-      const parts=path.split("/"); let acc="";
-      parts.forEach((p,i) => {
-        acc += (i>0?"/":"") + p;
-        const span=document.createElement("span"); span.textContent=p||"/";
-        span.onclick=()=>navigate(acc);
-        el.appendChild(span);
-      });
-    }
-
+    // Initialize on page load
     window.onload = () => {
       setEnv(env);
       buildTree(env === "LOCAL" ? "C:" : "VIRTUAL:", document.getElementById("tree"));
