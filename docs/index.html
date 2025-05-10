@@ -20,7 +20,7 @@
       background:#2d2d2d; padding:10px; overflow-y:auto;
     }
     #sidebar h3 { margin-top:0; }
-    #sidebar ul { list-style:none; padding-left:10px; }
+    #sidebar ul { list-style:none; padding-left:10px; margin:0; }
     #sidebar li { cursor:pointer; user-select:none; margin:4px 0; }
     #sidebar li::before { content:"► "; }
     #sidebar li.expanded::before { content:"▼ "; }
@@ -31,18 +31,25 @@
       display:flex; align-items:center;
       background:#333; padding:8px; border-bottom:1px solid #444;
     }
+    #header.highlight { background:#444; }
     #back-btn, #forward-btn, #env-toggle, #search-btn {
       background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer;
     }
     #back-btn.disabled, #forward-btn.disabled { opacity:.4; cursor:default; }
-    #path-display { flex-shrink:0; color:#569cd6; cursor:pointer; margin-right:16px; display:flex; }
+    #path-display {
+      display:flex; align-items:center;
+      color:#569cd6; cursor:pointer; margin-right:16px;
+    }
     #path-display span { margin-right:4px; }
     #path-display span:hover { text-decoration:underline; }
     #env-toggle.active { background:#0e639c; }
     #search-btn { font-size:18px; padding:4px; }
-    #search { flex:1; background:#222; color:#ddd; border:1px solid #444; padding:4px 8px; margin-left:4px; }
+    #search {
+      flex:1; background:#222; color:#ddd; border:1px solid #444;
+      padding:4px 8px; margin-left:4px;
+    }
 
-    #controls { grid-area: controls; padding:6px 8px; background:#2a2a2a; border-bottom:1px solid #444; }
+    #controls { grid-area: controls; }
 
     #viewer {
       grid-area: viewer;
@@ -72,13 +79,11 @@
 </head>
 <body>
   <div class="grid">
-    <!-- Sidebar: Path Tree -->
     <div id="sidebar">
       <h3>📁 File Tree</h3>
       <ul id="path-tree"></ul>
     </div>
 
-    <!-- Header: Back/Forward, Breadcrumbs, Env toggle, Search -->
     <div id="header">
       <button id="back-btn">◀</button>
       <button id="forward-btn">▶</button>
@@ -88,10 +93,8 @@
       <input id="search" placeholder="Search..." />
     </div>
 
-    <!-- Controls placeholder if needed -->
     <div id="controls"></div>
 
-    <!-- Viewer: file list or content -->
     <div id="viewer">
       <div id="doc-view"></div>
       <button id="copy-btn">Copy</button>
@@ -99,7 +102,7 @@
   </div>
 
   <script>
-    // Dummy file tree data
+    // Dummy data
     const treeData = {
       "C:": {
         "1st semester p": {},
@@ -110,26 +113,24 @@
               "nanoatmega.hex": "file",
               "nanoatmega.bin": "file"
             },
-            "libdeps": {},
-            ".vscode": {},
-            "__MACOSX": {},
-            "include": {},
-            "lib": {},
-            "src": {
-              "main.c": "file"
-            },
+            "libdeps": {}, ".vscode": {}, "__MACOSX": {}, "include": {}, "lib": {},
+            "src": { "main.c": "file" },
             "test": {}
           }
         },
         "Virtual": {}
+      },
+      "VIRTUAL:": {
+        "VirtualProject": {
+          "docs": { "overview.md": "file" },
+          "src": { "app.py": "file" }
+        }
       }
     };
 
-    // State
+    // State & refs
     let env = "LOCAL", current = "C:";
     let hist = [], pos = -1;
-
-    // Element refs
     const treeRoot = document.getElementById("path-tree"),
           pathDisp = document.getElementById("path-display"),
           backBtn  = document.getElementById("back-btn"),
@@ -142,7 +143,7 @@
           copyBtn  = document.getElementById("copy-btn"),
           header   = document.getElementById("header");
 
-    // History funcs
+    // History
     function updateNav(){
       backBtn.disabled = pos<=0;
       fwdBtn.disabled  = pos>=hist.length-1;
@@ -150,23 +151,23 @@
       fwdBtn.classList.toggle("disabled", fwdBtn.disabled);
     }
     function pushHist(p){
-      hist=hist.slice(0,pos+1); hist.push(p); pos++; updateNav();
+      hist = hist.slice(0,pos+1);
+      hist.push(p);
+      pos++;
+      updateNav();
     }
-    backBtn.onclick = ()=>{ if(pos>0) navigate(hist[--pos],false); };
-    fwdBtn.onclick  = ()=>{ if(pos<hist.length-1) navigate(hist[++pos],false); };
-    window.onmousedown = e=>{
-      if(e.button===3) backBtn.click();
-      if(e.button===4) fwdBtn.click();
-    };
+    backBtn.onclick    = ()=>{ if(pos>0) navigate(hist[--pos], false); };
+    fwdBtn.onclick     = ()=>{ if(pos<hist.length-1) navigate(hist[++pos], false); };
+    window.onmousedown = e=>{ if(e.button===3) backBtn.click(); if(e.button===4) fwdBtn.click(); };
 
-    // Build tree
+    // Build tree recursively
     function buildTree(node, ul, prefix=""){
       for(const key in node){
         const li = document.createElement("li");
         li.textContent = key;
         ul.appendChild(li);
         const childUl = document.createElement("ul");
-        childUl.style.display = "none";
+        childUl.style.display="none";
         li.appendChild(childUl);
 
         if(typeof node[key]==="object"){
@@ -188,11 +189,11 @@
       }
     }
 
-    // Render breadcrumbs & viewer
+    // Navigate / render
     function navigate(path, push=true){
       if(push) pushHist(path);
       current=path;
-      // breadcrumbs
+      // Breadcrumbs
       pathDisp.innerHTML="";
       path.split("/").forEach((seg,i)=>{
         const acc = path.split("/").slice(0,i+1).join("/");
@@ -201,35 +202,43 @@
         sp.onclick = ()=>navigate(acc);
         pathDisp.appendChild(sp);
       });
-      // display
+      // Clear view
       viewer.innerHTML="";
+      docView.textContent="";
       copyBtn.style.display="none";
-      if(treeData[ current.split(":")[0] ]){
-        // folder: list children
-        const parts=current.split(":")[1].split("/").filter(Boolean);
-        let node=treeData[current.split(":")[0]];
-        parts.forEach(p=>node=node[p]);
-        for(const name in node){
-          const row=document.createElement("div");
+
+      const q = searchEl.value.trim().toLowerCase();
+      // Locate node
+      const root = treeData[path.split(":")[0]];
+      const parts = path.split(":")[1].split("/").filter(Boolean);
+      let node = root;
+      parts.forEach(p=>node=node[p]);
+
+      // If folder: list children
+      if(typeof node==="object"){
+        const children = Object.keys(node);
+        const list = q? children.filter(n=>n.toLowerCase().includes(q)) : children;
+        list.forEach(name=>{
+          const full = path + (path.endsWith(":")? "/": "/") + name;
+          const entry = node[name];
+          const row = document.createElement("div");
           row.className="file-item";
-          const a=document.createElement("a");
-          a.textContent = (typeof node[name]==="object"?"📁 ":"📄 ")+name;
-          a.href="#"; a.onclick=e=>{e.preventDefault();navigate(current+"/"+name);};
+          const a = document.createElement("a");
+          a.textContent = (entry==="file"? "📄 ":"📁 ") + name;
+          a.onclick = e=>{ e.preventDefault(); navigate(full); };
           row.appendChild(a);
-          if(node[name]==="file"){
-            const dl=document.createElement("button");
+          if(entry==="file"){
+            const dl = document.createElement("button");
             dl.className="download-btn"; dl.textContent="📥";
+            dl.onclick = ()=>window.open(`https://whompinc.github.io/${full}`,"_blank");
             row.appendChild(dl);
           }
           viewer.appendChild(row);
-        }
+        });
       }
-      // file preview
-      const parts=current.split(":")[1].split("/").filter(Boolean);
-      let node=treeData[current.split(":")[0]];
-      parts.forEach(p=>node=node[p]);
-      if(node==="file"){
-        docView.textContent = `Contents of ${current}`;
+      // If file and not in search: preview
+      if(!q && node==="file"){
+        docView.textContent = `Contents of ${path}`;
         viewer.appendChild(docView);
         copyBtn.style.display="inline-block";
       }
@@ -239,29 +248,25 @@
     copyBtn.onclick = ()=>navigator.clipboard.writeText(docView.textContent);
 
     // Search
-    searchBtn.onclick = ()=> {
-      const q=searchEl.value.trim().toLowerCase();
-      viewer.innerHTML="";
-      // simple search across current folder
-      const parts=current.split(":")[1].split("/").filter(Boolean);
-      let node=treeData[current.split(":")[0]];
-      parts.forEach(p=>node=node[p]);
-      Object.keys(node).filter(n=>n.toLowerCase().includes(q)).forEach(name=>{
-        const row=document.createElement("div"); row.className="file-item";
-        const a=document.createElement("a");
-        a.textContent=(typeof node[name]==="object"?"📁 ":"📄 ")+name;
-        row.appendChild(a);
-        viewer.appendChild(row);
-      });
-    };
+    searchBtn.onclick = ()=>navigate(current);
+
+    // Clear search on manual clear
+    searchEl.oninput = ()=>{ if(!searchEl.value) navigate(current); };
 
     // Highlight header
-    header.onclick = e=>{ if(e.target===pathDisp) header.classList.toggle("highlight"); };
+    pathDisp.onclick = ()=>header.classList.toggle("highlight");
+
+    // Env toggle
+    envToggle.onclick = ()=>{
+      env = env==="LOCAL"? "VIRTUAL":"LOCAL";
+      envToggle.textContent = `[${env}]`;
+      navigate(env==="LOCAL"? "C:":"VIRTUAL:");
+    };
+    envToggle.textContent = `[${env}]`;
 
     // Init
     window.onload = ()=>{
       buildTree(treeData["C:"], treeRoot, "C:");
-      envToggle.textContent=`[${env}]`;
       navigate("C:");
     };
   </script>
