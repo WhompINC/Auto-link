@@ -90,21 +90,32 @@
 
   <script>
     const treeData = {
-      "C:": {
-        "1st semester p": {},
-        "ArduinoCodes": {
-          "ControllerArc": {
-            ".pio": {},
-            "build": { "nanoatmega.hex":"file","nanoatmega.bin":"file" },
-            "libdeps":{},".vscode":{},"__MACOSX":{},"include":{},"lib":{},
-            "src":{ "main.c":"file" },"test":{}
-          }
-        },"Virtual":{}
+      const treeData = {
+  "C:": {
+    "d": {
+      "Reports": {
+        "summary.txt": "file",
+        "analysis.md": "file",
+        "data.json": "file"
       },
-      "VIRTUAL:": {
-        "VirtualProject": {
-          "docs":{ "overview.md":"file" },
-          "src":{ "app.py":"file" }
+      "Scripts": {
+        "build.py": "file",
+        "deploy.sh": "file",
+        "config.ini": "file"
+      },
+      "Source": {
+        "main.c": "file",
+        "util.h": "file",
+        "util.c": "file"
+      },
+      "README.md": "file"
+    }
+  },
+  "VIRTUAL:": {
+    // keep or add similar dummy structure here
+  }
+};
+
         }
       }
     };
