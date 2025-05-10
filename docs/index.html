@@ -2,193 +2,183 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SDU Shield Explorer (Path & Search)</title>
+  <title>SDU Shield Explorer</title>
   <style>
     html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
     .grid {
       display: grid;
-      grid-template-columns: 200px 2fr;
+      grid-template-columns: 200px 1fr;
       grid-template-rows: auto 1fr;
       grid-template-areas:
-        "shortcuts path"
-        "shortcuts viewer";
+        "projects pathsearch"
+        "projects viewer";
       height:100%;
     }
-    #shortcuts { grid-area: shortcuts; background:#2d2d2d; padding:10px; overflow:auto; }
-    #path { grid-area: path; display: flex; flex-direction: column; padding: 8px; background:#333; border-bottom: 1px solid #444; }
-    #search    { padding:6px; margin-top:8px; background:#333; border:1px solid #444; color:#ddd; width:100%; }
-    #viewer    { grid-area: viewer; padding:8px; overflow:auto; }
-    #current-path { color:#569cd6; cursor:pointer; }
-    #current-path:hover { text-decoration: underline; }
-    .download-btn { font-size: 18px; cursor: pointer; background: #0e639c; color: white; padding: 2px 6px; border: none; border-radius: 3px; }
-    .file-item { display: flex; justify-content: space-between; margin: 5px 0; padding: 5px; }
-    .file-item a { color: #569cd6; text-decoration: none; }
-    .file-item a:hover { text-decoration: underline; }
-    .file-item .download-btn { margin-left: 10px; }
-    #doc-view { background:#252526; padding:8px; border:1px solid #444; height:100%; overflow:auto; white-space:pre-wrap; }
-    .highlight { background-color: #444; }
+    #projects {
+      grid-area: projects;
+      background:#2d2d2d;
+      padding:10px;
+      overflow-y:auto;
+    }
+    #pathsearch {
+      grid-area: pathsearch;
+      background:#333;
+      border-bottom:1px solid #444;
+      padding:8px;
+      display:flex;
+      align-items:center;
+    }
+    #pathsearch.highlight { background:#444; }
+    #path-display { color:#569cd6; cursor:pointer; margin-right:16px; }
+    #search {
+      flex:1;
+      padding:4px 8px;
+      background:#222;
+      border:1px solid #444;
+      color:#ddd;
+      margin-left:auto;
+    }
+    #viewer {
+      grid-area: viewer;
+      padding:8px;
+      overflow-y:auto;
+    }
+    .file-item {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:4px 0;
+      border-bottom:1px solid #2d2d2d;
+    }
+    .file-item a { color:#569cd6; text-decoration:none; }
+    .file-item a:hover { text-decoration:underline; }
+    .download-btn {
+      font-size:18px;
+      background:transparent;
+      border:none;
+      color:#0e639c;
+      cursor:pointer;
+    }
+    .download-btn:hover { color:#1177bb; }
+    .highlight { background:#444; }
   </style>
 </head>
 <body>
-
   <div class="grid">
-    <!-- Shortcuts section -->
-    <div id="shortcuts">
-      <h3>📌 Shortcuts</h3>
-      <ul id="sc-list"></ul>
+    <div id="projects">
+      <h3>📂 Projects</h3>
+      <ul id="projects-list"></ul>
     </div>
-
-    <!-- Path and Search section combined -->
-    <div id="path">
-      <div id="current-path" onclick="highlightPath()">Path:</div>
-      <input id="search" placeholder="🔍 Search..." oninput="renderSearchResults()">
+    <div id="pathsearch">
+      <button id="back-btn">◀</button>
+      <button id="forward-btn">▶</button>
+      <strong id="path-display">Path: C:</strong>
+      <input id="search" placeholder="🔍" />
     </div>
-
-    <!-- Viewer section -->
-    <div id="viewer">
-      <div id="doc-view"></div>
-    </div>
+    <div id="viewer"></div>
   </div>
 
   <script>
+    // File-system and icons defaults
     const DEFAULT_FS = {
       LOCAL: {
-        "C:": { type:"folder", children:["Files","Projects"] },
-        "C:/Files": { type:"folder", children:["sdu_shield_file_tree.html","open_link.html","directory_GPT.html","README.md"] },
-        "C:/Files/sdu_shield_file_tree.html": { type:"file" },
-        "C:/Files/open_link.html": { type:"file" },
+        "C:": { type:"folder", children:["Projects","Files"] },
+        "C:/Projects": { type:"folder", children:["SDU-Shield","Virtual"] },
+        "C:/Projects/SDU-Shield": { type:"folder", children:["index.html"] },
+        "C:/Projects/SDU-Shield/index.html": { type:"file" },
+        "C:/Projects/Virtual": { type:"folder", children:[] },
+        "C:/Files": { type:"folder", children:["directory_GPT.html","README.md"] },
         "C:/Files/directory_GPT.html": { type:"file" },
-        "C:/Files/README.md": { type:"file" },
-        "C:/Projects": { type:"folder", children:[] }
-      },
-      VIRTUAL: {
-        "VIRTUAL:": { type:"folder", children:["SDU-Shield","Virtual"] },
-        "VIRTUAL:/SDU-Shield": { type:"folder", children:["index.html"] },
-        "VIRTUAL:/SDU-Shield/index.html": { type:"file" },
-        "VIRTUAL:/Virtual": { type:"folder", children:[] }
+        "C:/Files/README.md": { type:"file" }
       }
     };
-
-    const DEFAULT_ICONS = { folder:"📁", txt:"📝", md:"📄", py:"🐍", html:"🌐", c:"🔧", h:"🔨", json:"🗒️", ini:"⚙️", default:"📦" };
-    let fsStore = JSON.parse(localStorage.getItem("fsStore") || "{}");
-    let icons = JSON.parse(localStorage.getItem("icons") || "{}");
-
-    if (!fsStore.LOCAL) fsStore = DEFAULT_FS;
-    if (Object.keys(icons).length === 0) icons = DEFAULT_ICONS;
-    localStorage.setItem("fsStore", JSON.stringify(fsStore));
-    localStorage.setItem("icons", JSON.stringify(icons));
-
-    let env = localStorage.getItem("env") || "LOCAL";
-    let current = env === "LOCAL" ? "C:" : "VIRTUAL:";
-
-    // Render path and contents based on selection
-    function renderContents() {
-      const q = document.getElementById("search").value.trim().toLowerCase();
-      const tree = document.getElementById("tree");
-      const sr = document.getElementById("search-results");
-
-      tree.style.display = q ? "none" : "block";
-      sr.style.display = q ? "block" : "none";
-      tree.innerHTML = "";
-      sr.innerHTML = "";
-
-      if (q) {
-        Object.keys(fsStore[env]).forEach(full => {
-          const name = full.split("/").pop();
-          if (name.toLowerCase().includes(q)) {
-            const li = document.createElement("li");
-            li.className = "file-item";
-            const a = document.createElement("a");
-            a.href = "#";
-            a.textContent = full;
-            a.onclick = e => { e.preventDefault(); navigate(full); };
-            li.appendChild(a);
-            if (fsStore[env][full].type === "file") {
-              const btn = document.createElement("button");
-              btn.className = "download-btn";
-              btn.textContent = "📥";
-              btn.onclick = () => window.open(`https://whompinc.github.io/${full}`);
-              li.appendChild(btn);
-            }
-            sr.appendChild(li);
-          }
-        });
-      } else {
-        (fsStore[env][current].children || []).forEach(name => {
-          const full = current + (current.endsWith(":") ? "/" : "/") + name;
-          const li = document.createElement("li");
-          li.className = "file-item";
-          const a = document.createElement("a");
-          a.href = "#";
-          a.textContent = name;
-          a.onclick = e => { e.preventDefault(); navigate(full); };
-          li.appendChild(a);
-          if (fsStore[env][full].type === "file") {
-            const btn = document.createElement("button");
-            btn.className = "download-btn";
-            btn.textContent = "📥";
-            btn.onclick = () => window.open(`https://whompinc.github.io/${full}`);
-            li.appendChild(btn);
-          }
-          tree.appendChild(li);
-        });
-      }
+    let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
+    if (!fsStore.LOCAL) {
+      fsStore = DEFAULT_FS;
+      localStorage.setItem("fsStore", JSON.stringify(fsStore));
     }
+    let env = "LOCAL", current = "C:";
 
-    // Highlight Path section
-    function highlightPath() {
-      const pathSection = document.getElementById("path");
-      pathSection.classList.toggle("active");
+    // History
+    let historyStack = [], historyPos = -1;
+    function pushHistory(path) {
+      historyStack = historyStack.slice(0,historyPos+1);
+      historyStack.push(path);
+      historyPos++;
+      updateNav();
     }
-
-    // Render Document or File contents in the viewer
-    function renderViewer(path) {
-      const dv = document.getElementById("doc-view");
-      const cb = document.getElementById("copy-btn");
-
-      if (fsStore[env][path] && fsStore[env][path].type === "file") {
-        fetch(`https://whompinc.github.io/${path}`)
-          .then(r => r.text())
-          .then(txt => { dv.textContent = txt; cb.style.display = "inline-block"; });
-      } else {
-        dv.textContent = ""; cb.style.display = "none";
-      }
+    function updateNav() {
+      backBtn.disabled = historyPos<=0;
+      forwardBtn.disabled = historyPos>=historyStack.length-1;
     }
+    backBtn.onclick =()=>{ if(historyPos>0) navigate(historyStack[--historyPos],false); };
+    forwardBtn.onclick =()=>{ if(historyPos<historyStack.length-1) navigate(historyStack[++historyPos],false); };
+    window.onmousedown = e=>{ if(e.button===3) backBtn.click(); if(e.button===4) forwardBtn.click(); };
 
-    // Navigate between directories or files
-    function navigate(path) {
-      if (fsStore[env][path] && fsStore[env][path].type === "folder") {
-        current = path;
-        renderContents();
-        renderViewer(path);
-        document.getElementById("current-path").textContent = path;
-      } else {
-        renderViewer(path);
-        document.getElementById("current-path").textContent = path;
-      }
-    }
+    // Elements
+    const projectsList = document.getElementById("projects-list"),
+          pathDisplay  = document.getElementById("path-display"),
+          searchInput  = document.getElementById("search"),
+          viewer       = document.getElementById("viewer"),
+          pathBox      = document.getElementById("pathsearch"),
+          backBtn      = document.getElementById("back-btn"),
+          forwardBtn   = document.getElementById("forward-btn");
 
-    // Initialize view on page load
-    window.onload = () => {
-      renderShortcuts();
-      renderContents();
-      navigate(current);
-    };
-
-    // Render Shortcuts
-    function renderShortcuts() {
-      const ul = document.getElementById("sc-list");
-      ul.innerHTML = "";
-      (fsStore[env][current].children || []).forEach(name => {
-        const li = document.createElement("li");
-        const a = document.createElement("a");
-        a.href = "#";
-        a.textContent = name;
-        a.onclick = e => { e.preventDefault(); navigate(current + (current.endsWith(":") ? "/" : "/") + name); };
-        li.appendChild(a);
-        ul.appendChild(li);
+    // Render Projects pane
+    function renderProjects() {
+      projectsList.innerHTML="";
+      (fsStore[env]["C:"]["children"]||[]).forEach(name=>{
+        const li=document.createElement("li"),
+              a =document.createElement("a");
+        a.href="#"; a.textContent=name;
+        a.onclick=e=>{e.preventDefault(); navigate("C:/"+name);};
+        li.appendChild(a); projectsList.appendChild(li);
       });
     }
+
+    // Render folder contents or file preview
+    function renderContents(path) {
+      viewer.innerHTML="";
+      const q = searchInput.value.trim().toLowerCase();
+      const children = fsStore[env][path].children||[];
+      const list = q
+        ? children.filter(n=>n.toLowerCase().includes(q))
+        : children;
+      list.forEach(name=>{
+        const full=path+(path.endsWith(":")?"":"/")+name,
+              entry=fsStore[env][full],
+              row=document.createElement("div");
+        row.className="file-item";
+        const a=document.createElement("a");
+        a.href="#"; a.textContent=(entry.type==="folder"?"📁 ":"📄 ")+name;
+        a.onclick=e=>{e.preventDefault(); navigate(full);};
+        row.appendChild(a);
+        if(entry.type==="file") {
+          const dl=document.createElement("button");
+          dl.className="download-btn"; dl.textContent="📥";
+          dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`,"_blank");
+          row.appendChild(dl);
+        }
+        viewer.appendChild(row);
+      });
+    }
+
+    // Navigate handler
+    function navigate(path, push=true) {
+      if(push) pushHistory(path);
+      current=path;
+      pathDisplay.textContent="Path: "+path;
+      renderContents(path);
+    }
+
+    // Highlight path/search box on focus
+    searchInput.onfocus = ()=>pathBox.classList.add("highlight");
+    searchInput.onblur  = ()=>pathBox.classList.remove("highlight");
+    searchInput.oninput = ()=>renderContents(current);
+
+    // Initialize
+    renderProjects();
+    navigate("C:");
   </script>
 </body>
 </html>
