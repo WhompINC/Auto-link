@@ -8,9 +8,10 @@
     .grid {
       display: grid;
       grid-template-columns: 200px 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       grid-template-areas:
         "projects header"
+        "projects controls"
         "projects viewer";
       height:100%;
     }
@@ -131,31 +132,24 @@
 </head>
 <body>
   <div class="grid">
-    <!-- Projects pane -->
     <div id="projects">
       <h3>📂 Projects <button onclick="editProjects()">✏️</button></h3>
       <ul id="projects-list"></ul>
       <h3 style="margin-top:16px">🔧 Icons <button onclick="editIcons()">✏️</button></h3>
     </div>
 
-    <!-- Header: Back/Forward, Breadcrumbs, Env switch, Search -->
     <div id="header">
-      <button id="back-btn">◀</button>
-      <button id="forward-btn">▶</button>
+      <button id="back-btn" onclick="goBack()">◀</button>
+      <button id="forward-btn" onclick="goForward()">▶</button>
       <div id="path-display"></div>
-      <button id="env-toggle"></button>
+      <button id="env-toggle" onclick="toggleEnv()">[LOCAL]</button>
       <input id="search" placeholder="🔍" />
     </div>
 
-    <!-- Viewer -->
-    <div id="viewer">
-      <div id="doc-view"></div>
-      <button id="copy-btn" style="display:none">Copy</button>
-    </div>
+    <div id="viewer"></div>
   </div>
 
   <script>
-    // Defaults
     const DEFAULT_FS = {
       LOCAL: {
         "C:": { type:"folder", children:["Projects","Files"] },
@@ -176,69 +170,71 @@
     };
     const DEFAULT_ICONS = { folder:"📁", file:"📄" };
 
-    // Storage load
-    let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
+    let fsStore = JSON.parse(localStorage.getItem("fsStore") || "{}");
     if (!fsStore.LOCAL) {
       fsStore = DEFAULT_FS;
       localStorage.setItem("fsStore", JSON.stringify(fsStore));
     }
-    let icons = JSON.parse(localStorage.getItem("icons")||"{}");
+    let icons = JSON.parse(localStorage.getItem("icons") || "{}");
     if (!icons.folder) {
       icons = DEFAULT_ICONS;
       localStorage.setItem("icons", JSON.stringify(icons));
     }
 
-    // State
-    let env     = localStorage.getItem("env")||"LOCAL";
-    let current = env==="LOCAL" ? "C:" : "VIRTUAL:";
+    let env = localStorage.getItem("env") || "LOCAL";
+    let current = env === "LOCAL" ? "C:" : "VIRTUAL:";
 
     // History
     let hist = [], pos = -1;
-    const backBtn    = document.getElementById("back-btn");
-    const forwardBtn = document.getElementById("forward-btn");
 
-    function updateNav(){
-      backBtn.disabled    = pos<=0;
-      forwardBtn.disabled = pos>=hist.length-1;
-      backBtn.classList.toggle("disabled", backBtn.disabled);
-      forwardBtn.classList.toggle("disabled", forwardBtn.disabled);
+    function updateNav() {
+      backBtn.disabled = pos <= 0;
+      forwardBtn.disabled = pos >= hist.length - 1;
     }
-    function pushHist(p){
-      hist = hist.slice(0,pos+1);
+
+    function pushHist(p) {
+      hist = hist.slice(0, pos + 1);
       hist.push(p);
       pos++;
       updateNav();
     }
-    backBtn.onclick    = ()=>{ if(pos>0) navigate(hist[--pos], false); };
-    forwardBtn.onclick = ()=>{ if(pos<hist.length-1) navigate(hist[++pos], false); };
-    window.onmousedown = e=>{ if(e.button===3) backBtn.click(); if(e.button===4) forwardBtn.click(); };
+
+    function goBack() {
+      if (pos > 0) navigate(hist[--pos], false);
+    }
+
+    function goForward() {
+      if (pos < hist.length - 1) navigate(hist[++pos], false);
+    }
 
     // Refs
-    const projList   = document.getElementById("projects-list"),
-          pathDisp   = document.getElementById("path-display"),
-          envToggle  = document.getElementById("env-toggle"),
-          searchEl   = document.getElementById("search"),
-          viewDiv    = document.getElementById("viewer"),
-          docView    = document.getElementById("doc-view"),
-          copyBtn    = document.getElementById("copy-btn"),
-          headerDiv  = document.getElementById("header");
+    const projList = document.getElementById("projects-list");
+    const pathDisp = document.getElementById("path-display");
+    const searchEl = document.getElementById("search");
+    const viewer = document.getElementById("viewer");
+    const docView = document.getElementById("doc-view");
+    const copyBtn = document.getElementById("copy-btn");
+    const pathSearch = document.getElementById("header");
 
     // Render Projects
-    function renderProjects(){
+    function renderProjects() {
       projList.innerHTML = "";
-      (fsStore[env]["C:"].children||[]).forEach(name=>{
-        const li=document.createElement("li"),
-              a =document.createElement("a");
-        a.href="#"; a.textContent=name;
-        a.onclick=e=>{ e.preventDefault(); navigate("C:"+"/"+name); };
-        li.appendChild(a); projList.appendChild(li);
+      (fsStore[env]["C:"].children || []).forEach(name => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = name;
+        a.onclick = e => { e.preventDefault(); navigate("C:" + "/" + name); };
+        li.appendChild(a);
+        projList.appendChild(li);
       });
     }
-    function editProjects(){
+
+    function editProjects() {
       const curr = fsStore[env]["C:"].children.join(",");
-      const inp  = prompt("Edit Projects (comma-separated):", curr);
-      if(inp!==null){
-        fsStore[env]["C:"].children = inp.split(",").map(s=>s.trim()).filter(Boolean);
+      const inp = prompt("Edit Projects (comma-separated):", curr);
+      if (inp !== null) {
+        fsStore[env]["C:"].children = inp.split(",").map(s => s.trim()).filter(Boolean);
         localStorage.setItem("fsStore", JSON.stringify(fsStore));
         renderProjects();
         navigate("C:");
@@ -246,14 +242,14 @@
     }
 
     // Edit Icons
-    function editIcons(){
-      const pairs = Object.entries(icons).map(([k,v])=>k+":"+v).join(",");
-      const inp = prompt("Edit icons ext:emoji (ex file:📄,folder:📁):", pairs);
-      if(inp!==null){
+    function editIcons() {
+      const pairs = Object.entries(icons).map(([k, v]) => k + ":" + v).join(",");
+      const inp = prompt("Edit icons, exts:emoji (ex: file:📄,folder:📁):", pairs);
+      if (inp !== null) {
         icons = {};
-        inp.split(",").forEach(p=>{
-          const [k,v] = p.split(":");
-          if(k&&v) icons[k.trim()] = v.trim();
+        inp.split(",").forEach(p => {
+          const [k, v] = p.split(":");
+          if (k && v) icons[k.trim()] = v.trim();
         });
         localStorage.setItem("icons", JSON.stringify(icons));
         navigate(current);
@@ -261,54 +257,50 @@
     }
 
     // Env toggle
-    function setEnv(e){
-      env = e;
+    function toggleEnv() {
+      env = (env === "LOCAL" ? "VIRTUAL" : "LOCAL");
       localStorage.setItem("env", env);
-      current = env==="LOCAL"? "C:" : "VIRTUAL:";
+      current = (env === "LOCAL" ? "C:" : "VIRTUAL:");
       envToggle.textContent = `[${env}]`;
       navigate(current);
     }
-    envToggle.onclick = ()=> setEnv(env==="LOCAL"? "VIRTUAL":"LOCAL");
 
-    // Render folder contents or file preview
-    function renderContents(path){
-      viewDiv.innerHTML = "";
+    // Render contents or file preview
+    function renderContents(path) {
+      viewer.innerHTML = "";
       const q = searchEl.value.trim().toLowerCase();
-      const children = fsStore[env][path].children||[];
+      const children = fsStore[env][path].children || [];
       const list = q
-        ? children.filter(n=>n.toLowerCase().includes(q))
+        ? children.filter(n => n.toLowerCase().includes(q))
         : children;
 
-      // list items
-      list.forEach(name=>{
-        const full = path + (path.endsWith(":")?"/":"/") + name,
-              entry=fsStore[env][full],
-              row  = document.createElement("div");
-        row.className="file-item";
+      list.forEach(name => {
+        const full = path + (path.endsWith(":") ? "/" : "/") + name,
+              entry = fsStore[env][full],
+              row = document.createElement("div");
+        row.className = "file-item";
 
-        // link
         const a = document.createElement("a");
-        a.href="#";
-        a.textContent = (entry.type==="folder"? icons.folder: icons.file)+" "+name;
-        a.onclick = e=>{ e.preventDefault(); navigate(full); };
+        a.href = "#";
+        a.textContent = (entry.type === "folder" ? icons.folder : icons.file) + " " + name;
+        a.onclick = e => { e.preventDefault(); navigate(full); };
         row.appendChild(a);
 
-        // download
-        if(entry.type==="file"){
+        if (entry.type === "file") {
           const dl = document.createElement("button");
-          dl.className="download-btn";
-          dl.textContent="📥";
-          dl.onclick = ()=> window.open(`https://whompinc.github.io/${full}`,"_blank");
+          dl.className = "download-btn";
+          dl.textContent = "📥";
+          dl.onclick = () => window.open(`https://whompinc.github.io/${full}`, "_blank");
           row.appendChild(dl);
         }
-        viewDiv.appendChild(row);
+        viewer.appendChild(row);
       });
 
-      // preview single file (if not searching)
-      if(!q && fsStore[env][path].type==="file"){
+      // Preview single file if not searching
+      if (!q && fsStore[env][path].type === "file") {
         fetch(`https://whompinc.github.io/${path}`)
-          .then(r=>r.text())
-          .then(txt=> docView.textContent = txt);
+          .then(r => r.text())
+          .then(txt => { docView.textContent = txt; });
         copyBtn.style.display = "inline-block";
       } else {
         docView.textContent = "";
@@ -316,35 +308,23 @@
       }
     }
 
-    // Copy preview
-    copyBtn.onclick = ()=> navigator.clipboard.writeText(docView.textContent);
-
     // Navigate
-    function navigate(path, push=true){
-      if(push) pushHist(path);
+    function navigate(path, push = true) {
+      if (push) pushHist(path);
       current = path;
-      // breadcrumb
       pathDisp.innerHTML = "";
-      path.split("/").forEach((seg,i)=>{
-        const acc = path.split("/").slice(0,i+1).join("/");
+      path.split("/").forEach((seg, i) => {
+        const acc = path.split("/").slice(0, i + 1).join("/");
         const span = document.createElement("span");
-        span.textContent = seg||"/";
-        span.onclick = ()=> navigate(acc);
+        span.textContent = seg || "/";
+        span.onclick = () => navigate(acc);
         pathDisp.appendChild(span);
       });
       renderContents(path);
     }
 
-    // Highlight header on path click
-    pathDisp.onclick = ()=> headerDiv.classList.toggle("highlight");
-
-    // Search behavior
-    searchEl.onfocus = ()=> headerDiv.classList.add("highlight");
-    searchEl.onblur  = ()=> headerDiv.classList.remove("highlight");
-    searchEl.oninput = ()=> renderContents(current);
-
-    // Init
-    window.onload = ()=>{
+    // Initialize
+    window.onload = () => {
       renderProjects();
       envToggle.textContent = `[${env}]`;
       navigate(current);
