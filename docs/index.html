@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SDU Shield Launcher</title>
+  <script>
+    window.onload = () => {
+      if (!sessionStorage.getItem("redirected")) {
+        sessionStorage.setItem("redirected", "true");
+        window.location.href = "https://whompinc.github.io/Files/directory_GPT.html";
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Launching SDU Shield Tree...</h1>
+  <noscript>
+    <p><a href="https://whompinc.github.io/Files/directory_GPT.html">Click here if not redirected</a></p>
+  </noscript>
+</body>
+</html>
