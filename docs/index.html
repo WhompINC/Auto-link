@@ -2,111 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SDU Shield File Explorer (CLI-like)</title>
+  <title>SDU Shield CLI File Explorer</title>
   <style>
     body {
-      font-family: 'Courier New', Courier, monospace;
-      background-color: #212121;
+      font-family: monospace;
+      background: #333;
       color: #fff;
+      margin: 0;
       padding: 20px;
     }
-    ul {
-      list-style-type: none;
-      padding-left: 20px;
+    h1 {
+      text-align: center;
+      color: #81c784;
     }
-    li {
-      margin: 5px 0;
+    .tree {
+      margin: 0;
+      padding-left: 10px;
+    }
+    .folder {
+      margin-left: 20px;
       cursor: pointer;
-      user-select: none;
-    }
-    li::before {
-      content: "► ";
-      color: #4caf50;
-    }
-    li.collapsed::before {
-      content: "► ";
-      color: #ff5722;
-    }
-    li.expanded::before {
-      content: "▼ ";
-      color: #4caf50;
+      color: #ffeb3b;
     }
     .file {
       color: #81c784;
-      display: inline;
+      padding-left: 20px;
+      margin-bottom: 5px;
     }
-    .folder {
-      color: #ffeb3b;
-      font-weight: bold;
+    .file a {
+      text-decoration: none;
+      color: #81c784;
+    }
+    .file a:hover {
+      text-decoration: underline;
     }
     .download-btn {
-      background-color: #ff5722;
-      color: white;
-      padding: 3px 10px;
+      margin-left: 20px;
+      padding: 5px;
+      background-color: #4caf50;
       border: none;
-      border-radius: 4px;
+      color: white;
+      border-radius: 3px;
       cursor: pointer;
-      font-size: 12px;
-      display: none;
     }
-    .folder:hover .download-btn {
-      display: inline-block;
+    .download-btn:hover {
+      background-color: #388e3c;
+    }
+    .folder-contents {
+      display: none;
+      padding-left: 20px;
+    }
+    .expanded .folder-contents {
+      display: block;
+    }
+    .expanded::before {
+      content: "▼ ";
+      color: #ff5722;
+    }
+    .collapsed::before {
+      content: "► ";
+      color: #ff5722;
     }
   </style>
 </head>
 <body>
-  <h1>SDU Shield File Explorer (CLI-like)</h1>
-  
-  <ul id="fileTree">
-    <li class="folder" onclick="toggleFolder(this)">
-      <span class="folder">/</span>
-      <ul class="folder-contents collapsed">
-        <li class="folder" onclick="toggleFolder(this)">
-          <span class="folder">Files</span>
-          <ul class="folder-contents collapsed">
-            <li class="file">
-              <a href="https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html" target="_blank">sdu_shield_file_tree_downloadable.html</a>
-              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html'">Download</button>
-            </li>
-            <li class="file">
-              <a href="https://whompinc.github.io/Files/index.html" target="_blank">index.html</a>
-              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/index.html'">Download</button>
-            </li>
-            <li class="file">
-              <a href="https://whompinc.github.io/Files/open_link.html" target="_blank">open_link.html</a>
-              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/open_link.html'">Download</button>
-            </li>
-            <li class="file">
-              <a href="https://whompinc.github.io/Files/directory_GPT.html" target="_blank">directory_GPT.html</a>
-              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/directory_GPT.html'">Download</button>
-            </li>
-          </ul>
-        </li>
-        <li class="folder" onclick="toggleFolder(this)">
-          <span class="folder">SDU-Shield</span>
-          <ul class="folder-contents collapsed">
-            <li class="file">
-              <a href="https://whompinc.github.io/SDU-Shield/">index.html (SDU Shield Launcher)</a>
-              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/SDU-Shield/'">Download</button>
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </li>
-  </ul>
+  <h1>SDU Shield File Explorer</h1>
+
+  <div class="tree">
+    <div class="folder collapsed" onclick="toggleFolder(this)">
+      / 
+      <div class="folder-contents">
+        <div class="folder collapsed" onclick="toggleFolder(this)">
+          Files
+          <div class="folder-contents">
+            <div class="file"><a href="https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html" target="_blank">sdu_shield_file_tree_downloadable.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html'">Download</button></div>
+            <div class="file"><a href="https://whompinc.github.io/Files/index.html" target="_blank">index.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/index.html'">Download</button></div>
+            <div class="file"><a href="https://whompinc.github.io/Files/open_link.html" target="_blank">open_link.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/open_link.html'">Download</button></div>
+            <div class="file"><a href="https://whompinc.github.io/Files/directory_GPT.html" target="_blank">directory_GPT.html</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/directory_GPT.html'">Download</button></div>
+          </div>
+        </div>
+        <div class="folder collapsed" onclick="toggleFolder(this)">
+          SDU-Shield
+          <div class="folder-contents">
+            <div class="file"><a href="https://whompinc.github.io/SDU-Shield/" target="_blank">index.html (Launcher)</a><button class="download-btn" onclick="window.location.href='https://whompinc.github.io/SDU-Shield/'">Download</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     function toggleFolder(element) {
       const folderContents = element.querySelector('.folder-contents');
-      if (folderContents.classList.contains('collapsed')) {
-        folderContents.classList.remove('collapsed');
-        folderContents.classList.add('expanded');
-      } else {
-        folderContents.classList.remove('expanded');
-        folderContents.classList.add('collapsed');
-      }
       element.classList.toggle('expanded');
       element.classList.toggle('collapsed');
+      if (folderContents) {
+        folderContents.style.display = folderContents.style.display === 'block' ? 'none' : 'block';
+      }
     }
   </script>
 </body>
