@@ -2,114 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SDU Shield File Explorer</title>
+  <title>SDU Shield File Explorer (CLI-like)</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f0f0;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h1 {
-      margin: 20px;
-      color: #333;
-    }
-    .container {
-      width: 80%;
+      font-family: 'Courier New', Courier, monospace;
+      background-color: #212121;
+      color: #fff;
       padding: 20px;
-      background-color: #fff;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      border-radius: 8px;
-      margin-top: 20px;
     }
-    .file-list {
-      list-style: none;
-      padding: 0;
+    ul {
+      list-style-type: none;
+      padding-left: 20px;
     }
-    .file-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
+    li {
+      margin: 5px 0;
+      cursor: pointer;
+      user-select: none;
     }
-    .file-item:hover {
-      background-color: #f1f1f1;
+    li::before {
+      content: "► ";
+      color: #4caf50;
     }
-    .file-name {
-      color: #0366d6;
-      text-decoration: none;
-      font-size: 16px;
+    li.collapsed::before {
+      content: "► ";
+      color: #ff5722;
     }
-    .file-name:hover {
-      text-decoration: underline;
+    li.expanded::before {
+      content: "▼ ";
+      color: #4caf50;
     }
-    .file-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
+    .file {
+      color: #81c784;
+      display: inline;
+    }
+    .folder {
+      color: #ffeb3b;
+      font-weight: bold;
     }
     .download-btn {
-      padding: 5px 10px;
-      background-color: #0366d6;
-      color: #fff;
+      background-color: #ff5722;
+      color: white;
+      padding: 3px 10px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 12px;
+      display: none;
     }
-    .download-btn:hover {
-      background-color: #004bb5;
-    }
-    .file-type {
-      font-size: 14px;
-      color: #888;
+    .folder:hover .download-btn {
+      display: inline-block;
     }
   </style>
 </head>
 <body>
+  <h1>SDU Shield File Explorer (CLI-like)</h1>
+  
+  <ul id="fileTree">
+    <li class="folder" onclick="toggleFolder(this)">
+      <span class="folder">/</span>
+      <ul class="folder-contents collapsed">
+        <li class="folder" onclick="toggleFolder(this)">
+          <span class="folder">Files</span>
+          <ul class="folder-contents collapsed">
+            <li class="file">
+              <a href="https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html" target="_blank">sdu_shield_file_tree_downloadable.html</a>
+              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/sdu_shield_file_tree_downloadable.html'">Download</button>
+            </li>
+            <li class="file">
+              <a href="https://whompinc.github.io/Files/index.html" target="_blank">index.html</a>
+              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/index.html'">Download</button>
+            </li>
+            <li class="file">
+              <a href="https://whompinc.github.io/Files/open_link.html" target="_blank">open_link.html</a>
+              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/open_link.html'">Download</button>
+            </li>
+            <li class="file">
+              <a href="https://whompinc.github.io/Files/directory_GPT.html" target="_blank">directory_GPT.html</a>
+              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/directory_GPT.html'">Download</button>
+            </li>
+          </ul>
+        </li>
+        <li class="folder" onclick="toggleFolder(this)">
+          <span class="folder">SDU-Shield</span>
+          <ul class="folder-contents collapsed">
+            <li class="file">
+              <a href="https://whompinc.github.io/SDU-Shield/">index.html (SDU Shield Launcher)</a>
+              <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/SDU-Shield/'">Download</button>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
 
-  <h1>SDU Shield File Explorer</h1>
-  <div class="container">
-    <ul class="file-list">
-      <li class="file-item">
-        <span class="file-name"><a href="#">lcd.h</a></span>
-        <span class="file-actions">
-          <span class="file-type">Header File</span>
-          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/lcd.h'">Download</button>
-        </span>
-      </li>
-      <li class="file-item">
-        <span class="file-name"><a href="#">main.c</a></span>
-        <span class="file-actions">
-          <span class="file-type">C Source File</span>
-          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/main.c'">Download</button>
-        </span>
-      </li>
-      <li class="file-item">
-        <span class="file-name"><a href="#">README.md</a></span>
-        <span class="file-actions">
-          <span class="file-type">Markdown File</span>
-          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/README.md'">Download</button>
-        </span>
-      </li>
-      <li class="file-item">
-        <span class="file-name"><a href="#">script.py</a></span>
-        <span class="file-actions">
-          <span class="file-type">Python Script</span>
-          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/script.py'">Download</button>
-        </span>
-      </li>
-      <li class="file-item">
-        <span class="file-name"><a href="#">platformio.ini</a></span>
-        <span class="file-actions">
-          <span class="file-type">Configuration File</span>
-          <button class="download-btn" onclick="window.location.href='https://whompinc.github.io/Files/platformio.ini'">Download</button>
-        </span>
-      </li>
-    </ul>
-  </div>
-
+  <script>
+    function toggleFolder(element) {
+      const folderContents = element.querySelector('.folder-contents');
+      if (folderContents.classList.contains('collapsed')) {
+        folderContents.classList.remove('collapsed');
+        folderContents.classList.add('expanded');
+      } else {
+        folderContents.classList.remove('expanded');
+        folderContents.classList.add('collapsed');
+      }
+      element.classList.toggle('expanded');
+      element.classList.toggle('collapsed');
+    }
+  </script>
 </body>
 </html>
