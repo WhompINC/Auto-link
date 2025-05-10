@@ -15,8 +15,9 @@
       height:100%;
     }
     #shortcuts { grid-area: shortcuts; background:#2d2d2d; padding:10px; overflow:auto; }
-    #path      { grid-area: path; border-bottom:1px solid #444; padding:8px; display:flex; align-items:center; }
-    #search    { grid-area: search; padding:6px; margin:8px; background:#333; border:1px solid #444; color:#ddd; width:90%; }
+    #path-search { grid-area: path; display:flex; align-items:center; border-bottom:1px solid #444; padding:8px; }
+    #path-search.active { background-color: #3a3a3a; }
+    #search    { padding:6px; margin-left:8px; background:#333; border:1px solid #444; color:#ddd; width:90%; }
     #contents  { grid-area: contents; padding:8px; overflow:auto; border-left:1px solid #444; border-bottom:1px solid #444; }
     #viewer    { grid-area: viewer; padding:8px; overflow:auto; }
     ul.tree { list-style:none; padding-left:16px; }
@@ -52,21 +53,22 @@
       <h3>📌 Shortcuts</h3>
       <ul id="sc-list"></ul>
     </div>
-    
-    <!-- Controls: Path, Environment Switch, and Search -->
-    <div id="path">
+
+    <!-- Combined Path and Search Section -->
+    <div id="path-search" class="active">
       <button id="back-btn" onclick="goBack()">◀ Back</button>
       <button id="forward-btn" onclick="goForward()">Forward ▶</button>
       <strong>Path:</strong> <span id="current-path"></span>
+      <input id="search" placeholder="🔍 Search…" oninput="renderContents()" />
     </div>
 
-    <input id="search" placeholder="🔍 Search…" oninput="renderContents()" />
-
+    <!-- Contents: Tree or Search Results -->
     <div id="contents">
       <ul id="tree" class="tree"></ul>
       <ul id="search-results" style="display:none; list-style:none; padding:0;"></ul>
     </div>
 
+    <!-- Viewer + Copy -->
     <div id="viewer">
       <div id="doc-view"></div>
       <button id="copy-btn" style="display:none" onclick="copyText()">Copy</button>
