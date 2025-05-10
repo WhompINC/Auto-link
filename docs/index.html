@@ -8,78 +8,54 @@
     .grid {
       display: grid;
       grid-template-columns: 200px 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       grid-template-areas:
         "projects pathsearch"
+        "projects projects"
         "projects viewer";
       height:100%;
     }
     #projects {
       grid-area: projects;
-      background:#2d2d2d;
-      padding:10px;
-      overflow-y:auto;
+      background:#2d2d2d; padding:10px; overflow-y:auto;
     }
     #pathsearch {
       grid-area: pathsearch;
-      background:#333;
-      border-bottom:1px solid #444;
-      padding:8px;
-      display:flex;
-      align-items:center;
+      display:flex; align-items:center;
+      background:#333; padding:6px; border-bottom:1px solid #444;
     }
     #pathsearch.highlight { background:#444; }
-    #path-display { color:#569cd6; cursor:pointer; margin-right:16px; }
-    #search {
-      flex:1;
-      padding:4px 8px;
-      background:#222;
-      border:1px solid #444;
-      color:#ddd;
-      margin-left:auto;
-    }
-    #viewer {
-      grid-area: viewer;
-      padding:8px;
-      overflow-y:auto;
-    }
-    .file-item {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:4px 0;
-      border-bottom:1px solid #2d2d2d;
-    }
+    #back-btn,#forward-btn { background:#444; color:#fff; border:none; padding:4px 8px; margin-right:4px; cursor:pointer; }
+    #path-display { margin-right:12px; color:#569cd6; cursor:pointer; }
+    #search { flex:1; background:#222; color:#ddd; border:1px solid #444; padding:4px 8px; }
+    #viewer { grid-area: viewer; padding:8px; overflow-y:auto; }
+    .file-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #2d2d2d; }
     .file-item a { color:#569cd6; text-decoration:none; }
     .file-item a:hover { text-decoration:underline; }
-    .download-btn {
-      font-size:18px;
-      background:transparent;
-      border:none;
-      color:#0e639c;
-      cursor:pointer;
-    }
+    .download-btn { background:transparent; border:none; font-size:18px; cursor:pointer; color:#0e639c; }
     .download-btn:hover { color:#1177bb; }
-    .highlight { background:#444; }
   </style>
 </head>
 <body>
   <div class="grid">
     <div id="projects">
-      <h3>📂 Projects</h3>
+      <h3>📂 Projects <button onclick="editProjects()">✏️</button></h3>
       <ul id="projects-list"></ul>
+      <h4>🔧 Icons <button onclick="editIcons()">✏️</button></h4>
     </div>
+
     <div id="pathsearch">
       <button id="back-btn">◀</button>
       <button id="forward-btn">▶</button>
       <strong id="path-display">Path: C:</strong>
       <input id="search" placeholder="🔍" />
     </div>
+
     <div id="viewer"></div>
   </div>
 
   <script>
-    // File-system and icons defaults
+    // Defaults
     const DEFAULT_FS = {
       LOCAL: {
         "C:": { type:"folder", children:["Projects","Files"] },
@@ -90,93 +66,128 @@
         "C:/Files": { type:"folder", children:["directory_GPT.html","README.md"] },
         "C:/Files/directory_GPT.html": { type:"file" },
         "C:/Files/README.md": { type:"file" }
+      },
+      VIRTUAL: {
+        "VIRTUAL:": { type:"folder", children:["SDU-Shield","Virtual"] },
+        "VIRTUAL:/SDU-Shield": { type:"folder", children:["index.html"] },
+        "VIRTUAL:/SDU-Shield/index.html": { type:"file" },
+        "VIRTUAL:/Virtual": { type:"folder", children:[] }
       }
     };
+    const DEFAULT_ICONS = { folder:"📁", file:"📄" };
+
+    // Load from storage or set defaults
     let fsStore = JSON.parse(localStorage.getItem("fsStore")||"{}");
-    if (!fsStore.LOCAL) {
-      fsStore = DEFAULT_FS;
-      localStorage.setItem("fsStore", JSON.stringify(fsStore));
-    }
-    let env = "LOCAL", current = "C:";
+    let icons   = JSON.parse(localStorage.getItem("icons")||"{}");
+    if(!fsStore.LOCAL) { fsStore = DEFAULT_FS; localStorage.setItem("fsStore",JSON.stringify(fsStore)); }
+    if(!icons.folder) { icons = DEFAULT_ICONS; localStorage.setItem("icons",JSON.stringify(icons)); }
+
+    // State
+    let env     = localStorage.getItem("env")||"LOCAL";
+    let current = env==="LOCAL" ? "C:" : "VIRTUAL:";
 
     // History
-    let historyStack = [], historyPos = -1;
-    function pushHistory(path) {
-      historyStack = historyStack.slice(0,historyPos+1);
-      historyStack.push(path);
-      historyPos++;
-      updateNav();
-    }
+    let hist = [], pos=-1;
     function updateNav() {
-      backBtn.disabled = historyPos<=0;
-      forwardBtn.disabled = historyPos>=historyStack.length-1;
+      backBtn.disabled = pos<=0;
+      forwardBtn.disabled = pos>=hist.length-1;
     }
-    backBtn.onclick =()=>{ if(historyPos>0) navigate(historyStack[--historyPos],false); };
-    forwardBtn.onclick =()=>{ if(historyPos<historyStack.length-1) navigate(historyStack[++historyPos],false); };
+    function pushHist(p) {
+      hist=hist.slice(0,pos+1); hist.push(p); pos++; updateNav();
+    }
+    backBtn.onclick  = ()=>{ if(pos>0) navigate(hist[--pos],false); };
+    forwardBtn.onclick = ()=>{ if(pos<hist.length-1) navigate(hist[++pos],false); };
     window.onmousedown = e=>{ if(e.button===3) backBtn.click(); if(e.button===4) forwardBtn.click(); };
 
     // Elements
-    const projectsList = document.getElementById("projects-list"),
-          pathDisplay  = document.getElementById("path-display"),
-          searchInput  = document.getElementById("search"),
-          viewer       = document.getElementById("viewer"),
-          pathBox      = document.getElementById("pathsearch"),
-          backBtn      = document.getElementById("back-btn"),
-          forwardBtn   = document.getElementById("forward-btn");
+    const projList = document.getElementById("projects-list"),
+          pathDisp = document.getElementById("path-display"),
+          searchEl = document.getElementById("search"),
+          view     = document.getElementById("viewer"),
+          psBox    = document.getElementById("pathsearch");
 
-    // Render Projects pane
+    // Render Projects
     function renderProjects() {
-      projectsList.innerHTML="";
-      (fsStore[env]["C:"]["children"]||[]).forEach(name=>{
+      projList.innerHTML="";
+      (fsStore[env]["C:"]["children"]||[]).forEach(n=>{
         const li=document.createElement("li"),
               a =document.createElement("a");
-        a.href="#"; a.textContent=name;
-        a.onclick=e=>{e.preventDefault(); navigate("C:/"+name);};
-        li.appendChild(a); projectsList.appendChild(li);
+        a.href="#"; a.textContent=n;
+        a.onclick=e=>{e.preventDefault(); navigate("C:"+"/"+n);};
+        li.appendChild(a); projList.appendChild(li);
       });
     }
 
-    // Render folder contents or file preview
-    function renderContents(path) {
-      viewer.innerHTML="";
-      const q = searchInput.value.trim().toLowerCase();
+    function editProjects(){
+      const list=fsStore[env]["C:"]["children"].join(",");
+      const inp=prompt("Edit Projects folders, comma-separated:",list);
+      if(inp!==null){
+        fsStore[env]["C:"]["children"]=inp.split(",").map(s=>s.trim()).filter(Boolean);
+        localStorage.setItem("fsStore",JSON.stringify(fsStore));
+        renderProjects(); navigate("C:");
+      }
+    }
+
+    function editIcons(){
+      const pairs=Object.entries(icons).map(([k,v])=>k+":"+v).join(",");
+      const inp=prompt("Edit icons, exts:emoji comma-separated:",pairs);
+      if(inp!==null){
+        icons={}; inp.split(",").forEach(p=>{
+          const [k,v]=p.split(":");
+          if(k&&v) icons[k.trim()]=v.trim();
+        });
+        localStorage.setItem("icons",JSON.stringify(icons));
+        navigate(current);
+      }
+    }
+
+    // Render contents or file
+    function renderContents(path){
+      view.innerHTML="";
+      const q=searchEl.value.trim().toLowerCase();
       const children = fsStore[env][path].children||[];
       const list = q
         ? children.filter(n=>n.toLowerCase().includes(q))
         : children;
-      list.forEach(name=>{
-        const full=path+(path.endsWith(":")?"":"/")+name,
+      list.forEach(n=>{
+        const full=path+(path.endsWith(":")?"":"/")+n,
               entry=fsStore[env][full],
               row=document.createElement("div");
         row.className="file-item";
         const a=document.createElement("a");
-        a.href="#"; a.textContent=(entry.type==="folder"?"📁 ":"📄 ")+name;
+        a.href="#";
+        a.textContent=(entry.type==="folder"?icons.folder:icons.file)+" "+n;
         a.onclick=e=>{e.preventDefault(); navigate(full);};
         row.appendChild(a);
-        if(entry.type==="file") {
+        if(entry.type==="file"){
           const dl=document.createElement("button");
           dl.className="download-btn"; dl.textContent="📥";
           dl.onclick=()=>window.open(`https://whompinc.github.io/${full}`,"_blank");
           row.appendChild(dl);
         }
-        viewer.appendChild(row);
+        view.appendChild(row);
       });
+      // if single file and not searching, preview it
+      if(!q && fsStore[env][path].type==="file"){
+        fetch(`https://whompinc.github.io/${path}`)
+          .then(r=>r.text()).then(txt=>view.textContent=txt);
+      }
     }
 
-    // Navigate handler
-    function navigate(path, push=true) {
-      if(push) pushHistory(path);
+    // Navigate
+    function navigate(path, push=true){
+      if(push) pushHist(path);
       current=path;
-      pathDisplay.textContent="Path: "+path;
+      pathDisp.textContent="Path: "+path;
       renderContents(path);
     }
 
-    // Highlight path/search box on focus
-    searchInput.onfocus = ()=>pathBox.classList.add("highlight");
-    searchInput.onblur  = ()=>pathBox.classList.remove("highlight");
-    searchInput.oninput = ()=>renderContents(current);
+    // Highlight
+    searchEl.onfocus = ()=>psBox.classList.add("highlight");
+    searchEl.onblur  = ()=>psBox.classList.remove("highlight");
+    searchEl.oninput = ()=>renderContents(current);
 
-    // Initialize
+    // Init
     renderProjects();
     navigate("C:");
   </script>
