@@ -1,42 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>directory_GPT</title>
+  <meta charset="UTF-8" />
+  <title>SDU Shield Reference Template</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f0f0f0; }
-    ul { list-style: none; padding-left: 1.5rem; }
-    li { margin: 0.2em 0; }
-    a { color: #0366d6; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    body {
+      font-family: sans-serif;
+      background: #f8f8f8;
+      margin: 2rem;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: bold;
+    }
+    ul {
+      list-style: none;
+      padding-left: 1.5rem;
+    }
+    a {
+      text-decoration: none;
+      color: #0366d6;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <h1>directory_GPT - Project Map</h1>
-  <ul>
-    <li><strong>📁 /</strong>
-      <ul>
-        <li><strong>📁 Files</strong>
-          <ul>
-            <li><a href="https://whompinc.github.io/Files/index.html">index.html (old launcher)</a></li>
-            <li><a href="https://whompinc.github.io/Files/sdu_shield_file_tree.html">sdu_shield_file_tree.html</a></li>
-            <li><a href="https://whompinc.github.io/Files/open_link.html">open_link.html</a></li>
-            <li><a href="https://whompinc.github.io/Files/directory_GPT.html">directory_GPT.html</a></li>
-          </ul>
-        </li>
-        <li><strong>📁 SDU-Shield</strong>
-          <ul>
-            <li><a href="https://whompinc.github.io/SDU-Shield/">index.html (redirects once per session)</a></li>
-          </ul>
-        </li>
-        <li><strong>📁 SDU_Shield_Projects</strong></li>
-        <li><strong>📁 Virtual</strong></li>
-        <li><strong>📁 HelloWorldTemplate</strong></li>
-        <li><strong>📁 Template</strong></li>
-        <li><strong>📁 scripts</strong></li>
-        <li><strong>📁 C:/</strong></li>
-      </ul>
-    </li>
-  </ul>
+  <h1>SDU Shield Reference Template</h1>
+  <details open>
+    <summary>📁 include</summary>
+    <ul>
+      <li><a href="#">lcd.h</a></li>
+      <li><a href="#">lm75.h</a></li>
+      <li><a href="#">usart.h</a></li>
+      <li><a href="#">i2cmaster.h</a></li>
+    </ul>
+  </details>
+  <details open>
+    <summary>📁 src</summary>
+    <ul>
+      <li><a href="#">main.c</a></li>
+    </ul>
+  </details>
+  <details open>
+    <summary>📁 docs</summary>
+    <ul>
+      <li><a href="#">README.md</a></li>
+    </ul>
+  </details>
+  <details open>
+    <summary>📁 root</summary>
+    <ul>
+      <li><a href="#">platformio.ini</a></li>
+    </ul>
+  </details>
 </body>
 </html>
