@@ -1,11 +1,3 @@
-# SDU Shield Explorer (Gist-Backed)
+# WhompINC Files Explorer
 
-## Setup
-Populate `d/directory_GPT` and `d/virtual` with your files.  
-Then simply run:
-```
-python file_master.py map
-```
-to regenerate and publish your map to the Gist.
-
-Open `index.html` (e.g. via GitHub Pages) to view.
+Run `python file_master.py map` to update file_tree.json on GitHub.
