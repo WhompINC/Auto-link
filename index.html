@@ -84,7 +84,6 @@
   </div>
 
   <script>
-    // Extended icon map
     const icons = {
       png:'🖼️', jpg:'🖼️', jpeg:'🖼️', gif:'🖼️',
       zip:'🗜️', html:'🌐', css:'🎨', json:'🗃️', ini:'⚙️',
@@ -104,11 +103,10 @@
           searchBtn=document.getElementById('search-btn'),
           refreshBtn=document.getElementById('refresh');
 
-    // Load JSON map
     async function loadTree(){
       try {
-        const res=await fetch('file_tree.json');
-        treeData=await res.json();
+        const res = await fetch('file_tree.json');
+        treeData = await res.json();
         renderSidebar();
         navigate(Object.keys(treeData)[0]);
       } catch(e){
@@ -117,7 +115,6 @@
       }
     }
 
-    // Build sidebar
     function renderSidebar(){
       treeEl.innerHTML='';
       Object.entries(treeData).forEach(([env,node])=>{
@@ -130,7 +127,6 @@
       });
     }
 
-    // Recursive sidebar builder
     function buildNode(obj, ul, path, parentLi){
       Object.entries(obj).forEach(([name,val])=>{
         const full=path+'/'+name;
@@ -147,8 +143,6 @@
             li.classList.toggle('expanded',exp);
             subUl.style.display=exp?'block':'none';
             navigate(full);
-            // sync parent expand
-            if(exp) parentLi.classList.add('expanded');
           });
         } else {
           li.classList.add('file');
@@ -161,9 +155,8 @@
       });
     }
 
-    // Navigate to path
-    async function navigate(path){
-      if(hist[pos]!==path){
+    async function navigate(path, push=true){
+      if(push && hist[pos]!==path){
         hist=hist.slice(0,pos+1); hist.push(path); pos=hist.length-1; updateNav();
       }
       pathEl.textContent=path;
@@ -184,21 +177,17 @@
           docView.textContent='Error loading file';
         }
       }
-      // expand in sidebar
       syncExpand(path);
     }
 
-    // Show a file/folder card
     function showItem(full,val){
       const name=full.split('/').pop(),
             ext=name.split('.').pop().toLowerCase(),
             icon=typeof val==='object'?'📁':(icons[ext]||'📄');
-
       const div=document.createElement('div');
       div.className='item';
       div.innerHTML=`<div class="icon">${icon}</div><div class="name">${name}</div>`;
       div.addEventListener('click',()=>navigate(full));
-
       if(typeof val!=='object'){
         const dl=document.createElement('button');
         dl.className='download-btn';
@@ -212,43 +201,37 @@
       viewer.appendChild(div);
     }
 
-    // Sync expansion in sidebar when clicking viewer
     function syncExpand(path){
       const parts=path.split('/');
       let selector='#tree > li';
       parts.forEach((p,i)=>{
-        const list=document.querySelectorAll(selector);
-        list.forEach(li=>{
-          if(li.firstChild.textContent===p){
-            if(i<parts.length-1){
-              // expand
-              li.classList.add('expanded');
-              const child=li.querySelector('ul');
-              if(child) child.style.display='block';
-            }
+        document.querySelectorAll(selector).forEach(li=>{
+          if(li.firstChild.textContent===p && i<parts.length-1){
+            li.classList.add('expanded');
+            const child=li.querySelector('ul');
+            if(child) child.style.display='block';
           }
         });
         selector+=' > ul > li';
       });
     }
 
-    // Navigation buttons
     function updateNav(){
       backBtn.disabled=pos<=0;
       fwdBtn.disabled=pos>=hist.length-1;
     }
-    backBtn.addEventListener('click',()=>{ if(pos>0) navigate(hist[--pos]); });
-    fwdBtn.addEventListener('click',()=>{ if(pos<hist.length-1) navigate(hist[++pos]); });
-
-    // Refresh
-    refreshBtn.addEventListener('click',()=>{
-      filters.text=[]; searchEl.value='';
-      loadTree();
+    backBtn.addEventListener('click',()=>{
+      if(pos>0) navigate(hist[--pos], false);
+    });
+    fwdBtn.addEventListener('click',()=>{
+      if(pos<hist.length-1) navigate(hist[++pos], false);
     });
 
-    // Search with filters
+    refreshBtn.addEventListener('click',()=>{
+      filters.text=[]; searchEl.value=''; loadTree();
+    });
+
     searchEl.addEventListener('input',applySearch);
-    searchEl.addEventListener('keydown',e=>{ if(e.key==='Enter') e.preventDefault(); });
     searchBtn.addEventListener('click',applySearch);
 
     function applySearch(){
