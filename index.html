@@ -11,8 +11,7 @@
                "sidebar viewer"; height:100%; }
     #sidebar { grid-area: sidebar; background:#2d2d2d; padding:10px; overflow-y:auto; }
     #sidebar ul { list-style:none; padding:0; margin:0; }
-    #sidebar li { padding:4px; cursor:pointer; transition:background .2s; }
-    #sidebar li:hover { background:#3a3a3a; }
+    #sidebar li { padding:4px; cursor:pointer; }
     #header { grid-area: header; display:flex; align-items:center; background:#333; padding:8px; }
     #controls { grid-area: controls; display:flex; align-items:center; background:#333; padding:4px 8px; }
     #viewer { grid-area: viewer; padding:12px; overflow-y:auto; background:#252526; }
@@ -31,7 +30,7 @@
     <div id="viewer"><pre id="doc-view">Select a file or folder</pre></div>
   </div>
   <script>
-    const GIST_URL = 'https://gist.githubusercontent.com/WhompINC/cdfaad8036ec458507db2eb66da8de2c/raw/f60e8d360b2460d8e44ea648a58bb2ab3cf2d491/file_tree.json';
+    const GIST_URL = 'https://gist.githubusercontent.com/WhompINC/cdfaad8036ec458507db2eb66da8de2c/raw/file_tree.json';
     let treeData={}, hist=[], pos=-1;
     const treeEl=document.getElementById('tree'), viewer=document.getElementById('viewer'),
           docView=document.getElementById('doc-view'), pathEl=document.getElementById('path'),
@@ -45,30 +44,28 @@
       }catch(e){ pathEl.textContent='Failed to load tree'; console.error(e); }
     }
     function renderSidebar(){
-      treeEl.innerHTML=''; for(const [env,node] of Object.entries(treeData)){
-        const li=document.createElement('li'); li.textContent=env; li.onclick=e=>navigate(env);
-        treeEl.append(li);
+      treeEl.innerHTML=''; for(const env in treeData){
+        const li=document.createElement('li'); li.textContent=env;
+        li.onclick=()=>navigate(env); treeEl.append(li);
       }
     }
     async function navigate(path){
-      hist.push(path); pos=hist.length-1; updateNav(); pathEl.textContent=path;
-      const [env,...rest]=path.split('/'); let node=treeData[env]; rest.forEach(r=>node=node[r]);
+      hist.push(path); pathEl.textContent=path;
+      const [env,...rest]=path.split('/'), node=rest.reduce((n,p)=>n[p], treeData[env]);
       viewer.innerHTML=''; if(typeof node==='object'){
-        for(const [n,v] of Object.entries(node)){ showItem(env+'/'+n,v); }
+        for(const name in node) showItem(env+'/'+name,node[name]);
       } else {
         try{ const r=await fetch(path), t=await r.text(); viewer.innerHTML='<pre>'+t+'</pre>'; }
         catch{ docView.textContent='Error loading file'; }
       }
     }
     function showItem(full,val){
-      const name=full.split('/').pop(), ext=name.split('.').pop(), icon='📄';
+      const name=full.split('/').pop(), icon='📄';
       const div=document.createElement('div'); div.className='item';
       div.innerHTML=`<div class="icon">${icon}</div><div class="name">${name}</div>`;
-      div.onclick=_=>navigate(full); viewer.append(div);
+      div.onclick=()=>navigate(full); viewer.append(div);
     }
-    function updateNav(){/* no nav buttons here */ }
-    refreshBtn.onclick=loadTree; searchBtn.onclick=_=>{}; searchEl.onkeydown=e=>{};
-    window.onload=loadTree;
+    refreshBtn.onclick=loadTree; window.onload=loadTree;
   </script>
 </body>
 </html>

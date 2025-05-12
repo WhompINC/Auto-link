@@ -2,28 +2,30 @@
 import os, json
 from github import Github
 
-GIST_ID = "cdfaad8036ec458507db2eb66da8de2c"
-GIST_FILE = "file_tree.json"
-DOC_ROOT = "d"
+# Config
+GIST_ID   = "cdfaad8036ec458507db2eb66da8de2c"
+DOC_ROOT  = "d"
+import os
 TOKEN = os.getenv("GITHUB_TOKEN")
-
 if not TOKEN:
-    raise SystemExit("Set GITHUB_TOKEN with gist scope")
+    raise SystemExit("Error: please set GITHUB_TOKEN as an environment variable.")
+
 
 def build_tree(path):
     tree={}
-    for n in sorted(os.listdir(path)):
-        f=os.path.join(path,n)
-        if os.path.isdir(f):
-            tree[n]=build_tree(f)
-        else:
-            tree[n]="file"
+    for name in sorted(os.listdir(path)):
+        full=os.path.join(path,name)
+        tree[name]=build_tree(full) if os.path.isdir(full) else "file"
     return tree
 
-data={b:build_tree(os.path.join(DOC_ROOT,b)) for b in sorted(os.listdir(DOC_ROOT)) if os.path.isdir(os.path.join(DOC_ROOT,b))}
-content=json.dumps(data,indent=2)
+data={}
+for branch in sorted(os.listdir(DOC_ROOT)):
+    p=os.path.join(DOC_ROOT,branch)
+    if os.path.isdir(p):
+        data[branch]=build_tree(p)
 
+content=json.dumps(data,indent=2)
 gh=Github(TOKEN)
 gist=gh.get_gist(GIST_ID)
-gist.edit(files={GIST_FILE:{"content":content}})
-print("✅ Gist updated")
+gist.edit(files={ "file_tree.json": { "content": content } })
+print("✅ Gist updated with latest map")
