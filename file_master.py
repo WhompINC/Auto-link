@@ -44,6 +44,27 @@ def bundle_branch(branch, path):
 def cmd_map():
     branches = [d for d in sorted(os.listdir(DOC_ROOT))
                 if os.path.isdir(os.path.join(DOC_ROOT, d))]
+    +    # ——— Auto-commit & push back to GitHub ———
++    import subprocess
++    try:
++        # Stage updated files
++        subprocess.run([
++            "git", "add",
++            "file_tree.json",
++            "file_paths.txt"
++        ] + [f"bundle_{b}.zip" for b in branches], check=True)
++
++        # Commit
++        subprocess.run([
++            "git", "commit", "-m",
++            "ci: regen map and bundles via .map"
++        ], check=True)
++
++        # Push to origin/main
++        subprocess.run(["git", "push", "origin", "main"], check=True)
++        print("✅ map & bundles committed and pushed to GitHub")
++    except subprocess.CalledProcessError as e:
++        print("❌ git auto-push failed:", e)
     if not branches:
         print(f"No subdirectories in {DOC_ROOT}")
         return
