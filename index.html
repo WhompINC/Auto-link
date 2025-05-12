@@ -1,0 +1,40 @@
+function showItem(full, val) {
+  const name = full.split('/').pop(),
+        ext  = name.split('.').pop().toLowerCase(),
+        icon = typeof val === 'object' ? '📁' : (icons[ext] || '📄');
+
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.innerHTML = `
+    <div class="icon">${icon}</div>
+    <div class="name">${name}</div>
+  `;
+  div.addEventListener('click', () => navigate(full));
+
+  if (typeof val !== 'object') {
+    const dl = document.createElement('button');
+    dl.className = 'download-btn';
+    dl.textContent = '⬇️';
+    dl.addEventListener('click', async e => {
+      e.stopPropagation();
+      try {
+        const resp = await fetch(full);
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch(err) {
+        console.error('Download failed', err);
+        alert('Failed to download ' + name);
+      }
+    });
+    div.appendChild(dl);
+  }
+
+  viewer.appendChild(div);
+}
