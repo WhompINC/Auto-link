@@ -1,71 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SDU Shield Explorer</title>
-  <style>
-    /* (Your existing CSS here—omitted for brevity) */
-  </style>
-</head>
-<body>
-  <div class="grid">
-    <div id="sidebar"><h3>📁 Files</h3><ul id="tree"></ul></div>
-    <div id="header">
-      <button id="back">◀</button><button id="forward">▶</button>
-      <span id="path">Loading...</span>
-    </div>
-    <div id="controls">
-      <button id="refresh">🔄 Refresh</button>
-      <input id="search" placeholder="Search..." /><button id="search-btn">🔍</button>
-    </div>
-    <div id="viewer"><pre id="doc-view">Select a file or folder</pre></div>
-  </div>
+function showItem(full, val) {
+  const name = full.split('/').pop(),
+        ext  = name.split('.').pop().toLowerCase(),
+        icon = typeof val === 'object' ? '📁' : (icons[ext] || '📄');
 
-  <script>
-    // Your existing icon map, state variables, and helpers...
-    const REMOTE_URL = 'https://whompinc.github.io/Files/file_tree.json?cb=' + Date.now();
-    const LOCAL_URL  = 'file_tree.json?cb=' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.innerHTML = `
+    <div class="icon">${icon}</div>
+    <div class="name">${name}</div>
+  `;
+  div.addEventListener('click', () => navigate(full));
 
-    async function fetchTree() {
+  if (typeof val !== 'object') {
+    const dl = document.createElement('button');
+    dl.className = 'download-btn';
+    dl.textContent = '⬇️';
+    dl.addEventListener('click', async e => {
+      e.stopPropagation();
       try {
-        const res = await fetch(REMOTE_URL);
-        if (!res.ok) throw new Error(`Remote fetch failed: ${res.status}`);
-        const json = await res.json();
-        console.log('Loaded tree from remote');
-        return json;
-      } catch (e) {
-        console.warn('Remote load failed, falling back to local:', e);
-        // Fallback to local
-        try {
-          const res2 = await fetch(LOCAL_URL);
-          if (!res2.ok) throw new Error(`Local fetch failed: ${res2.status}`);
-          const json2 = await res2.json();
-          console.log('Loaded tree from local file');
-          return json2;
-        } catch (e2) {
-          console.error('All fetches failed:', e2);
-          throw e2;
-        }
+        const resp = await fetch(full);
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch(err) {
+        console.error('Download failed', err);
+        alert('Failed to download ' + name);
       }
-    }
+    });
+    div.appendChild(dl);
+  }
 
-    async function loadTree(){
-      try {
-        treeData = await fetchTree();
-        renderSidebar();
-        navigate(Object.keys(treeData)[0]);
-      } catch {
-        document.getElementById('path').textContent = 'Error loading tree—check console';
-      }
-    }
-
-    // ...rest of your existing script (renderSidebar, buildNode, navigate, etc.) unchanged, 
-    // but make sure loadTree() is called on window.onload and on refresh button
-
-    // Hook up refresh
-    document.getElementById('refresh').addEventListener('click', loadTree);
-    window.onload = loadTree;
-  </script>
-</body>
-</html>
+  viewer.appendChild(div);
+}
