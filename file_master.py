@@ -12,10 +12,7 @@ def build(path):
     return tree
 
 if __name__ == '__main__':
-    data = {
-        'LOCAL': build('directory_GPT'),
-        'VIRTUAL': build('virtual')
-    }
+    data = {'LOCAL': build('directory_GPT'), 'VIRTUAL': build('virtual')}
     with open('file_tree.json', 'w') as f:
         json.dump(data, f, indent=2)
     print('file_tree.json generated')

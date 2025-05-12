@@ -9,21 +9,37 @@
                "sidebar header"
                "sidebar controls"
                "sidebar viewer"; height:100%; }
+
+    /* Sidebar */
     #sidebar { grid-area: sidebar; background:#2d2d2d; padding:10px; overflow-y:auto; }
-    #sidebar h3 { margin-top:0; }
-    #sidebar ul { list-style:none; padding-left:10px; margin:0; }
-    #sidebar li { cursor:pointer; user-select:none; margin:4px 0; }
-    #sidebar li.folder::before { content:"📁 "; }
-    #sidebar li.file::before { content:"📄 "; }
-    #header { grid-area: header; display:flex; align-items:center; background:#333; padding:8px; }
-    #header button { background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer; }
-    #header button:disabled { opacity:0.4; cursor:default; }
-    #path { flex:1; color:#569cd6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #sidebar h3 { margin:0 0 8px; color:#ccc; }
+    #sidebar ul { list-style:none; padding:0; margin:0; }
+    #sidebar ul ul { display: none; margin-left: 16px; }
+    #sidebar li { padding:4px 8px; position: relative; cursor: pointer; user-select: none; }
+    #sidebar li.folder::before { content: '▶'; position: absolute; left:0; }
+    #sidebar li.folder.expanded::before { content: '▼'; }
+    #sidebar li.file::before { content: '📄'; position: absolute; left:0; }
+
+    /* Header/nav */
+    #header { grid-area: header; display:flex; align-items:center; background:#333; padding:8px; border-bottom:1px solid #444; }
+    #header button { background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer; transition:background .1s; }
+    #header button:disabled { opacity:.4; cursor:default; }
+    #path { flex:1; color:#569cd6; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Controls */
     #controls { grid-area: controls; display:flex; align-items:center; background:#333; padding:4px 8px; border-bottom:1px solid #444; }
-    #controls button { background:#444; color:#fff; border:none; padding:4px 8px; margin-left:4px; cursor:pointer; }
-    #controls input { padding:4px; margin-left:auto; background:#222; border:1px solid #444; color:#ddd; }
+    #controls button { background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; cursor:pointer; transition:background .1s; }
+    #controls input { flex:1; padding:4px 8px; background:#222; border:1px solid #444; color:#ddd; }
+
+    /* Viewer */
     #viewer { grid-area: viewer; padding:12px; overflow-y:auto; background:#252526; }
-    #doc-view { white-space:pre-wrap; background:#1e1e1e; padding:8px; border:1px solid #444; }
+    .item { display:inline-block; width:120px; margin:8px; text-align:center; cursor:pointer; }
+    .icon { font-size:32px; }
+    .name { margin-top:4px; font-size:14px; word-break:break-word; }
+    .download-btn { background:transparent; border:none; color:#0e639c; font-size:16px; margin-top:4px; cursor:pointer; transition:background .1s; }
+    .download-btn:active, button:active, .item:active, #sidebar li:active { background:#444; }
+
+    pre { white-space:pre-wrap; background:#1e1e1e; padding:8px; border:1px solid #444; color:#ddd; }
   </style>
 </head>
 <body>
@@ -39,93 +55,160 @@
       <input id="search" placeholder="Search..." />
       <button id="search-btn">🔍</button>
     </div>
-    <div id="viewer"><div id="doc-view">Select a file or folder</div></div>
+    <div id="viewer"><pre id="doc-view">Select a file or folder</pre></div>
   </div>
   <script>
-    let treeData = {};
-    let hist = [], pos = -1;
-    const treeEl = document.getElementById('tree');
-    const docView = document.getElementById('doc-view');
-    const pathEl = document.getElementById('path');
-    const backBtn = document.getElementById('back');
-    const fwdBtn = document.getElementById('forward');
-    const searchEl = document.getElementById('search');
-    const searchBtn = document.getElementById('search-btn');
-    const refreshBtn = document.getElementById('refresh');
+    const icons = { png:'🖼️', jpg:'🖼️', zip:'🗜️', html:'🌐', c:'💻', h:'💻', txt:'📄' };
+    let treeData = {}, env = 'LOCAL', hist = [], pos = -1;
+    const treeEl = document.getElementById('tree'),
+          viewer = document.getElementById('viewer'),
+          docView = document.getElementById('doc-view'),
+          pathEl = document.getElementById('path'),
+          backBtn = document.getElementById('back'),
+          fwdBtn = document.getElementById('forward'),
+          searchEl = document.getElementById('search'),
+          searchBtn = document.getElementById('search-btn'),
+          refreshBtn = document.getElementById('refresh');
 
-    function updateNav() {
-      backBtn.disabled = pos <= 0;
-      fwdBtn.disabled = pos >= hist.length - 1;
-    }
-
-    function pushHistory(path) {
-      if (hist[pos] !== path) {
-        hist = hist.slice(0, pos+1);
-        hist.push(path);
-        pos = hist.length - 1;
+    async function loadTree(){
+      try {
+        const res = await fetch('file_tree.json');
+        treeData = await res.json();
+        renderSidebar();
+        navigate('LOCAL');
+      } catch {
+        pathEl.textContent = 'Failed to load tree';
       }
-      updateNav();
     }
 
-    function renderTree(node, ul, prefix='') {
-      ul.innerHTML = '';
-      Object.keys(node).forEach(key => {
+    function renderSidebar(){
+      treeEl.innerHTML = '';
+      Object.entries(treeData).forEach(([branch, node]) => {
         const li = document.createElement('li');
-        const full = prefix ? prefix + '/' + key : key;
-        li.textContent = key;
-        li.className = typeof node[key] === 'object' ? 'folder' : 'file';
-        li.onclick = e => { e.stopPropagation(); navigate(full); };
-        ul.appendChild(li);
-        if (typeof node[key] === 'object') {
-          const child = document.createElement('ul');
-          li.appendChild(child);
-          renderTree(node[key], child, full);
-        }
+        li.textContent = branch;
+        li.classList.add('folder');
+        const childUl = document.createElement('ul');
+        buildNode(node, childUl, branch);
+        li.appendChild(childUl);
+        li.addEventListener('click', e => {
+          e.stopPropagation();
+          const expanded = childUl.style.display==='none';
+          li.classList.toggle('expanded', expanded);
+          childUl.style.display = expanded?'block':'none';
+          navigate(branch);
+        });
+        treeEl.appendChild(li);
       });
     }
 
-    async function navigate(path) {
-      if (!treeData) return;
-      pushHistory(path);
+    function buildNode(obj, ul, path){
+      Object.entries(obj).forEach(([name,val])=>{
+        const full = path + '/' + name;
+        const li = document.createElement('li');
+        li.textContent = name;
+        if(typeof val === 'object'){
+          li.classList.add('folder');
+          const childUl = document.createElement('ul');
+          childUl.style.display = 'none';
+          buildNode(val, childUl, full);
+          li.appendChild(childUl);
+          li.addEventListener('click', e => {
+            e.stopPropagation();
+            const exp = childUl.style.display==='none';
+            li.classList.toggle('expanded', exp);
+            childUl.style.display = exp?'block':'none';
+            navigate(full);
+          });
+        } else {
+          li.classList.add('file');
+          li.addEventListener('click', e => {
+            e.stopPropagation();
+            navigate(full);
+          });
+        }
+        ul.appendChild(li);
+      });
+    }
+
+    async function navigate(path){
+      if(hist[pos] !== path){
+        hist = hist.slice(0,pos+1);
+        hist.push(path);
+        pos = hist.length-1;
+        updateNav();
+      }
       pathEl.textContent = path;
-      const parts = path.split('/');
-      let node = treeData;
-      for (const p of parts) node = node[p];
-      if (typeof node === 'object') {
-        renderTree(treeData, treeEl);
-        docView.textContent = 'Directory: ' + path;
+      const parts = path.split('/'), root = parts.shift();
+      let node = treeData[root];
+      parts.forEach(p=> node = node[p]);
+      viewer.innerHTML = '';
+      if(typeof node === 'object'){
+        Object.entries(node).forEach(([name,val])=>{
+          const full = root + '/' + name;
+          const div = document.createElement('div');
+          div.className = 'item';
+          const ext = name.split('.').pop();
+          const icon = typeof val==='object'?'📁':(icons[ext]||'📄');
+          div.innerHTML = `<div class="icon">${icon}</div><div class="name">${name}</div>`;
+          div.addEventListener('click', ()=>navigate(full));
+          if(typeof val!=='object'){
+            const dl = document.createElement('button');
+            dl.className = 'download-btn';
+            dl.textContent = '⬇️';
+            dl.addEventListener('click', e=>{
+              e.stopPropagation();
+              window.open(full,'_blank');
+            });
+            div.appendChild(dl);
+          }
+          viewer.appendChild(div);
+        });
       } else {
         try {
           const res = await fetch(path);
           const text = await res.text();
-          docView.textContent = text;
+          const pre = document.createElement('pre');
+          pre.textContent = text;
+          viewer.appendChild(pre);
         } catch {
           docView.textContent = 'Error loading file';
         }
       }
     }
 
-    async function loadTree() {
-      try {
-        const res = await fetch('file_tree.json');
-        treeData = await res.json();
-        renderTree(treeData, treeEl);
-        const start = Object.keys(treeData)[0] || '';
-        navigate(start);
-      } catch {
-        pathEl.textContent = 'Failed to load tree';
-      }
+    function updateNav(){
+      backBtn.disabled = pos<=0;
+      fwdBtn.disabled = pos>=hist.length-1;
     }
 
-    backBtn.onclick = () => { if (pos>0) navigate(hist[--pos]); };
-    fwdBtn.onclick = () => { if (pos<hist.length-1) navigate(hist[++pos]); };
-    searchBtn.onclick = () => {
-      const term = searchEl.value.toLowerCase();
-      document.querySelectorAll('#tree li').forEach(li => {
-        li.style.display = li.textContent.toLowerCase().includes(term) ? '' : 'none';
-      });
-    };
+    backBtn.onclick    = ()=>{ if(pos>0) navigate(hist[--pos]); };
+    fwdBtn.onclick     = ()=>{ if(pos<hist.length-1) navigate(hist[++pos]); };
     refreshBtn.onclick = loadTree;
+    searchBtn.onclick  = doSearch;
+    searchEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+    function doSearch(){
+      const term = searchEl.value.toLowerCase(), results = [];
+      (function walk(obj, p){
+        Object.entries(obj).forEach(([n,v])=>{
+          const full = p + '/' + n;
+          if(typeof v==='object') walk(v, full);
+          else if(full.toLowerCase().includes(term)) results.push(full);
+        });
+      })(treeData[env], env);
+      viewer.innerHTML = '';
+      results.forEach(full=>{
+        const name = full.split('/').pop();
+        const ext  = name.split('.').pop();
+        const div = document.createElement('div');
+        div.className = 'item';
+        const icon = icons[ext]||'📄';
+        div.innerHTML = `<div class="icon">${icon}</div><div class="name">${name}</div>`;
+        div.addEventListener('click', ()=>navigate(full));
+        viewer.appendChild(div);
+      });
+    }
+
     window.onload = loadTree;
   </script>
 </body>

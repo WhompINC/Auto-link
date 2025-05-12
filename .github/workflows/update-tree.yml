@@ -1,0 +1,24 @@
+name: Update File Tree
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Generate file tree
+        run: python file_master.py
+      - name: Commit file_tree.json
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: GitHub Actions
+          author_email: actions@github.com
+          message: 'ci: update file_tree.json'
+          add: file_tree.json
