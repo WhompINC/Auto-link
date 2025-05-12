@@ -1,49 +1,26 @@
 #!/usr/bin/env python3
 import os, json, base64, requests
 
-OWNER = "WhompINC"
-REPO = "Files"
-BRANCH = "main"
-FILE_TREE = "file_tree.json"
-DOC_ROOT = "d"
-GITHUB_TOKEN = "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"
+OWNER="WhompINC"; REPO="Files"; BRANCH="main"; TOKEN="ghp_token"
+ROOT="d"; FILE="file_tree.json"
 
-def build_tree(path):
-    tree = {}
-    for name in sorted(os.listdir(path)):
-        full = os.path.join(path, name)
-        if os.path.isdir(full):
-            tree[name] = build_tree(full)
-        else:
-            tree[name] = "file"
-    return tree
+def build(p):
+    t={}
+    for n in sorted(os.listdir(p)):
+        fp=os.path.join(p,n)
+        if os.path.isdir(fp): t[n]=build(fp)
+        else: t[n]="file"
+    return t
 
-data = {}
-for branch in sorted(os.listdir(DOC_ROOT)):
-    p = os.path.join(DOC_ROOT, branch)
-    if os.path.isdir(p):
-        data[branch] = build_tree(p)
+data={b:build(os.path.join(ROOT,b)) for b in os.listdir(ROOT) if os.path.isdir(os.path.join(ROOT,b))}
+s=json.dumps(data,indent=2)
+with open(FILE,"w") as f: f.write(s)
 
-content_str = json.dumps(data, indent=2)
-with open(FILE_TREE, "w") as f:
-    f.write(content_str)
-
-api_url = f"https://api.github.com/repos/{OWNER}/{REPO}/contents/{FILE_TREE}"
-hdrs = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-resp = requests.get(api_url, headers=hdrs)
-if resp.status_code == 200:
-    sha = resp.json()["sha"]
-elif resp.status_code == 404:
-    sha = None
-else:
-    raise SystemExit(f"Error fetching {FILE_TREE}: {resp.status_code}")
-
-b64 = base64.b64encode(content_str.encode()).decode()
-payload = {"message": f"ci: update {FILE_TREE}", "content": b64, "branch": BRANCH}
-if sha: payload["sha"] = sha
-
-resp2 = requests.put(api_url, headers=hdrs, json=payload)
-if resp2.status_code in (200,201):
-    print("✅ file_tree.json updated on GitHub")
-else:
-    print(f"❌ Failed: {resp2.status_code} {resp2.text}")
+api="https://api.github.com/repos/WhompINC/Files/contents/"+FILE
+h={"Authorization":"Bearer "+TOKEN,"Accept":"application/vnd.github+json"}
+r=requests.get(api,headers=h)
+sha=r.json().get("sha") if r.status_code==200 else None
+payload={"message":"ci:regen","content":base64.b64encode(s.encode()).decode(),"branch":BRANCH}
+if sha: payload["sha"]=sha
+r2=requests.put(api,headers=h,json=payload)
+print(r2.status_code)
