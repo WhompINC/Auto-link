@@ -1,27 +1,18 @@
 # Files Explorer
 
-This repository hosts a browser-based explorer of the `d/` directory.
+This repo hosts an interactive file explorer on GitHub Pages.
 
-## Structure
-
-- `index.html` — Single-page UI (collapsible sidebar, live search, downloads)
-- `file_master.py` — Script to scan `d/*` and generate:
-  - `file_tree.json` (directory map)
-  - `file_paths.txt` (flat list)
-  - `bundle_<branch>.zip` for each branch
-- `d/`
-  - **directory_GPT/** — LOCAL files
-  - **virtual/** — VIRTUAL files
-- `.github/workflows/update-tree.yml` — GitHub Action to auto-run `map` on push or manual dispatch
+- **index.html**: Explorer UI
+- **file_master.py**: Generates file_tree.json, file_paths.txt, and bundle_*.zip
+- **file_tree.json**: Directory map (auto-generated)
+- **file_paths.txt**: Flat list of file paths
+- **bundle_*.zip**: Zipped branches
+- **d/**: Contains branches (directory_GPT, virtual, etc.)
+- **.github/workflows/update-tree.yml**: CI to regenerate on push or manual dispatch
 
 ## Usage
 
-1. **Publish Pages** on `main` branch root: https://whompinc.github.io/Files/
-2. **Run map locally**:
-   ```bash
-   python file_master.py map
-   ```
-3. **Trigger Action** to update remotely:
-   ```bash
-   gh workflow run update-tree.yml --repo whompinc/Files --ref main
-   ```
+1. Place your files under `d/directory_GPT/` and `d/virtual/`
+2. Commit & push to main.
+3. The workflow runs on push → regenerates map.
+4. View at https://whompinc.github.io/Files/

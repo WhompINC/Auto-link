@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import os, sys, json, zipfile
 
-# Constants
 BASE_DIR = os.path.dirname(__file__)
-DOC_ROOT = os.path.join(BASE_DIR, 'd')  # directory containing branches
+DOC_ROOT = os.path.join(BASE_DIR, 'd')
 TREE_JSON = os.path.join(BASE_DIR, 'file_tree.json')
 PATHS_TXT = os.path.join(BASE_DIR, 'file_paths.txt')
-BUNDLE_PREFIX = "bundle"  # prefix for branch bundles
+BUNDLE_PREFIX = "bundle"
 
 def build_tree(path):
     tree = {}
@@ -40,44 +39,38 @@ def bundle_branch(branch, path):
                 absf = os.path.join(root, f)
                 arc = os.path.join(branch, os.path.relpath(absf, path))
                 zf.write(absf, arcname=arc)
-    print(f"✅ Bundled {branch} -> {zip_name}")
+    print(f"Bundled {branch} → {zip_name}")
 
 def cmd_map():
-    # Discover branches
     branches = [d for d in sorted(os.listdir(DOC_ROOT))
                 if os.path.isdir(os.path.join(DOC_ROOT, d))]
     if not branches:
         print(f"No subdirectories in {DOC_ROOT}")
         return
-    # Build tree data
-    data = {}
-    for branch in branches:
-        data[branch] = build_tree(os.path.join(DOC_ROOT, branch))
-    # Write JSON
-    with open(TREE_JSON, 'w', encoding='utf-8') as f:
+    data = {b: build_tree(os.path.join(DOC_ROOT, b)) for b in branches}
+    with open(TREE_JSON, 'w') as f:
         json.dump(data, f, indent=2)
-    print(f"✅ Wrote {TREE_JSON}")
-    # Write flat paths
-    with open(PATHS_TXT, 'w', encoding='utf-8') as f:
-        for branch in branches:
-            f.write(f"{branch} paths:\n")
-            for p in gather_paths(os.path.join(DOC_ROOT, branch)):
+    print("Wrote file_tree.json")
+    with open(PATHS_TXT, 'w') as f:
+        for b in branches:
+            f.write(f"{b} paths:\n")
+            for p in gather_paths(os.path.join(DOC_ROOT, b)):
                 f.write(p + "\n")
             f.write("\n")
-    print(f"✅ Wrote {PATHS_TXT}")
-    # Bundle each
-    for branch in branches:
-        bundle_branch(branch, os.path.join(DOC_ROOT, branch))
+    print("Wrote file_paths.txt")
+    for b in branches:
+        bundle_branch(b, os.path.join(DOC_ROOT, b))
 
 def cmd_open():
-    url = "https://whompinc.github.io/Files/"
-    print(f"[Files]({url})")
+    print("[Files](https://whompinc.github.io/Files/)")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: file_master.py map | open")
-    cmd = sys.argv[1].lower()
-    if cmd in ('map', '.map'):
+        print("Usage: python file_master.py map | open")
+        sys.exit(1)
+    if sys.argv[1].lower() in ('map', '.map'):
         cmd_map()
-    elif cmd in ('open', '.open'):
+    elif sys.argv[1].lower() in ('open', '.open'):
         cmd_open()
+    else:
+        print("Unknown command.")
