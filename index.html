@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SDU Shield Explorer</title>
+  <style>
+    html, body { height:100%; margin:0; font-family: monospace; background:#1e1e1e; color:#ddd; }
+    .grid { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto auto 1fr; 
+            grid-template-areas:
+              "sidebar header"
+              "sidebar controls"
+              "sidebar viewer"; height:100%; }
+
+    /* Sidebar */
+    #sidebar { grid-area: sidebar; background:#2d2d2d; padding:10px; overflow-y:auto; }
+    #sidebar h3 { margin:0 0 8px; color:#ccc; }
+    #sidebar ul { list-style:none; padding:0; margin:0; }
+    #sidebar ul ul { display:none; margin-left:16px; }
+    #sidebar li { padding:4px 8px; position: relative; cursor:pointer; user-select:none;
+                  transition: background .2s; }
+    #sidebar li.folder::before { content:'▶'; position:absolute; left:0; }
+    #sidebar li.folder.expanded::before { content:'▼'; }
+    #sidebar li.file::before { content:'📄'; position:absolute; left:0; }
+    #sidebar li:hover { background:#3a3a3a; }
+    #sidebar li:active { background:#555; }
+
+    /* Header/nav */
+    #header { grid-area:header; display:flex; align-items:center; background:#333; padding:8px; 
+               border-bottom:1px solid #444; }
+    #header button { background:#444; color:#fff; border:none; padding:4px 8px; margin-right:8px; 
+                     cursor:pointer; transition: background .1s; }
+    #header button:hover { background:#555; }
+    #header button:active { background:#777; }
+    #header button:disabled { opacity:.4; cursor:default; }
+    #path { flex:1; color:#569cd6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Controls */
+    #controls { grid-area:controls; display:flex; align-items:center; background:#333; padding:4px 8px; 
+                border-bottom:1px solid #444; }
+    #controls input { flex:1; padding:4px 8px; background:#222; border:1px solid #444; color:#ddd;
+                      transition: border-color .2s; }
+    #controls input:focus { border-color:#569cd6; outline:none; }
+    #controls button { background:#444; color:#fff; border:none; padding:4px 8px; margin-left:8px; 
+                       cursor:pointer; transition: background .1s; }
+    #controls button:hover { background:#555; }
+    #controls button:active { background:#777; }
+
+    /* Viewer */
+    #viewer { grid-area:viewer; padding:12px; overflow-y:auto; background:#252526; }
+    .item { display:inline-block; width:120px; margin:8px; text-align:center; cursor:pointer;
+            transition: background .2s; }
+    .item:hover { background:#3a3a3a; }
+    .item:active { background:#555; }
+    .icon { font-size:32px; }
+    .name { margin-top:4px; font-size:14px; word-break:break-word; }
+    .download-btn { background:transparent; border:none; font-size:16px; color:#0e639c; margin-top:4px;
+                    cursor:pointer; transition: background .1s; }
+    .download-btn:hover { background:#555; }
+    .download-btn:active { background:#777; }
+
+    pre { white-space:pre-wrap; background:#1e1e1e; padding:8px; border:1px solid #444; color:#ddd; }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div id="sidebar"><h3>Files</h3><ul id="tree"></ul></div>
+    <div id="header">
+      <button id="back">◀</button>
+      <button id="forward">▶</button>
+      <span id="path">Loading...</span>
+    </div>
+    <div id="controls">
+      <button id="refresh">🔄 Refresh</button>
+      <input id="search" placeholder="Search..." autofocus />
+      <button id="search-btn">🔍</button>
+    </div>
+    <div id="viewer"><pre id="doc-view">Select a file or folder</pre></div>
+  </div>
+
+  <script>
+    // File‐type icons
+    const icons = {
+      'png':'🖼️','jpg':'🖼️','jpeg':'🖼️','gif':'🖼️',
+      'zip':'🗜️','html':'🌐','css':'🎨','json':'🗃️','ini':'⚙️',
+      'c':'💻','h':'💻','txt':'📄','md':'📝','py':'🐍'
+    };
+
+    let treeData = {}, hist = [], pos = -1;
+    let filters = { env: null, exts: [], names: [], text: [] };
+    const treeEl = document.getElementById('tree'),
+          viewer = document.getElementById('viewer'),
+          docView = document.getElementById('doc-view'),
+          pathEl = document.getElementById('path'),
+          backBtn = document.getElementById('back'),
+          fwdBtn = document.getElementById('forward'),
+          searchEl = document.getElementById('search'),
+          searchBtn = document.getElementById('search-btn'),
+          refreshBtn = document.getElementById('refresh');
+
+    // Load the directory map
+    async function loadTree(){
+      try {
+        const res = await fetch('file_tree.json');
+        treeData = await res.json();
+        renderSidebar();
+        navigate('LOCAL');
+      } catch {
+        pathEl.textContent = 'Failed to load tree';
+      }
+    }
+
+    // Build the sidebar
+    function renderSidebar(){
+      treeEl.innerHTML = '';
+      Object.entries(treeData).forEach(([env, node])=>{
+        const li = document.createElement('li');
+        li.textContent = env;
+        li.classList.add('folder');
+        const childUl = document.createElement('ul');
+        buildNode(node, childUl, env);
+        li.appendChild(childUl);
+        li.addEventListener('click', e=>{
+          e.stopPropagation();
+          const exp = childUl.style.display==='none';
+          li.classList.toggle('expanded', exp);
+          childUl.style.display = exp ? 'block':'none';
+          navigate(env);
+        });
+        treeEl.appendChild(li);
+      });
+    }
+
+    // Recursive build
+    function buildNode(obj, ul, path){
+      Object.entries(obj).forEach(([name,val])=>{
+        const full = path+'/'+name;
+        const li = document.createElement('li');
+        li.textContent = name;
+        if(typeof val==='object'){
+          li.classList.add('folder');
+          const childUl = document.createElement('ul');
+          childUl.style.display='none';
+          buildNode(val, childUl, full);
+          li.appendChild(childUl);
+          li.addEventListener('click', e=>{
+            e.stopPropagation();
+            const exp = childUl.style.display==='none';
+            li.classList.toggle('expanded', exp);
+            childUl.style.display = exp?'block':'none';
+            navigate(full);
+          });
+        } else {
+          li.classList.add('file');
+          li.addEventListener('click', e=>{
+            e.stopPropagation();
+            navigate(full);
+          });
+        }
+        ul.appendChild(li);
+      });
+    }
+
+    // Navigate to path or show search results
+    async function navigate(path){
+      // push history
+      if(hist[pos] !== path){
+        hist = hist.slice(0,pos+1);
+        hist.push(path);
+        pos = hist.length-1;
+        updateNav();
+      }
+      pathEl.textContent = path;
+      // If searching, skip path-based view
+      if(filters.text.length) return applySearch();
+
+      const [env, ...rest] = path.split('/');
+      let node = treeData[env];
+      rest.forEach(p=> node=node[p]);
+
+      viewer.innerHTML = '';
+      if(typeof node==='object'){
+        // directory view
+        Object.entries(node).forEach(([name,val])=>{
+          showItem(env+'/'+name, val);
+        });
+      } else {
+        // file view
+        try {
+          const res = await fetch(path);
+          const txt = await res.text();
+          viewer.innerHTML = `<pre>${txt}</pre>`;
+        } catch {
+          docView.textContent='Error loading file';
+        }
+      }
+    }
+
+    // Show a single item in the grid
+    function showItem(full, val){
+      const name = full.split('/').pop(),
+            ext  = name.split('.').pop(),
+            icon = typeof val==='object' ? '📁' : (icons[ext]||'📄');
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.innerHTML = `<div class="icon">${icon}</div><div class="name">${name}</div>`;
+      div.addEventListener('click', ()=>navigate(full));
+      if(typeof val!=='object'){
+        const dl = document.createElement('button');
+        dl.className = 'download-btn';
+        dl.textContent = '⬇️';
+        dl.addEventListener('click', e=>{
+          e.stopPropagation();
+          window.open(full,'_blank');
+        });
+        div.appendChild(dl);
+      }
+      viewer.appendChild(div);
+    }
+
+    // Update back/forward
+    function updateNav(){
+      backBtn.disabled = pos<=0;
+      fwdBtn.disabled  = pos>=hist.length-1;
+    }
+    backBtn.onclick = ()=>{ if(pos>0) navigate(hist[--pos]); };
+    fwdBtn.onclick  = ()=>{ if(pos<hist.length-1) navigate(hist[++pos]); };
+
+    // Refresh
+    refreshBtn.addEventListener('click', ()=>{ filters.text=[]; searchEl.value=''; loadTree(); });
+
+    // Live search with filters
+    searchEl.addEventListener('input', applySearch);
+    function applySearch(){
+      // parse filters
+      const raw = searchEl.value.trim().toLowerCase();
+      filters = { env:null, exts:[], names:[], text:[] };
+      raw.split(/\s+/).forEach(tok=>{
+        if(tok==='local:'||tok==='l/') filters.env='LOCAL';
+        else if(tok==='virtual:'||tok==='v:') filters.env='VIRTUAL';
+        else if(tok.startsWith('file.')||tok.startsWith('f.')) filters.names.push(tok.split('.')[1]);
+        else if(tok.startsWith('.')) filters.exts.push(tok.slice(1));
+        else if(tok) filters.text.push(tok);
+      });
+
+      // collect matches
+      const results = [];
+      function walk(obj, p){
+        Object.entries(obj).forEach(([n,v])=>{
+          const full = p+'/'+n, ext=n.split('.').pop();
+          if(typeof v==='object'){
+            walk(v, full);
+          } else {
+            // apply filters
+            if(filters.env && !full.startsWith(filters.env+'/')) return;
+            if(filters.exts.length && !filters.exts.includes(ext)) return;
+            if(filters.names.length && !filters.names.some(f=>n.includes(f))) return;
+            if(filters.text.length && !filters.text.every(t=> full.includes(t))) return;
+            results.push([full,v]);
+          }
+        });
+      }
+      // start walk
+      Object.entries(treeData).forEach(([env,node])=>{
+        if(!filters.env||filters.env===env) walk(node,env);
+      });
+
+      // render results
+      viewer.innerHTML = '';
+      if(results.length){
+        results.forEach(([full,val])=> showItem(full,val));
+      } else {
+        viewer.innerHTML=`<pre>No matches for “${searchEl.value}”</pre>`;
+      }
+    }
+
+    // Enter key triggers search
+    searchEl.addEventListener('keydown',e=>{
+      if(e.key==='Enter') e.preventDefault();
+    });
+
+    window.onload = loadTree;
+  </script>
+</body>
+</html>
