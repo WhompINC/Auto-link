@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit file_tree.json</title>
+  <style>
+    body { font-family: monospace; background:#1e1e1e; color:#ddd; padding:20px; }
+    textarea { width:100%; height:70vh; background:#252526; color:#ddd; border:1px solid #444; padding:10px; }
+    button { margin-top:10px; padding:8px 16px; background:#444; color:#fff; border:none; cursor:pointer; }
+    button:hover { background:#555; }
+  </style>
+</head>
+<body>
+  <h1>Edit file_tree.json</h1>
+  <textarea id="editor"></textarea><br>
+  <button id="save">Save to GitHub</button>
+  <script>
+    const OWNER="WhompINC", REPO="Files", BRANCH="main", PATH="file_tree.json";
+    let sha = null;
+    async function load() {
+      const res = await fetch(PATH+'?cb='+Date.now());
+      document.getElementById('editor').value = await res.text();
+      const meta = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+      if(meta.ok) sha = (await meta.json()).sha;
+    }
+    document.getElementById('save').onclick = async () => {
+      const content = btoa(unescape(encodeURIComponent(document.getElementById('editor').value)));
+      const token = prompt("GitHub Token with repo write scope:");
+      const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+        method:'PUT',
+        headers:{
+          "Authorization": "Bearer "+token,
+          "Accept":"application/vnd.github+json"
+        },
+        body: JSON.stringify({
+          message:"Edit file_tree.json via editor",
+          content, branch:BRANCH, sha
+        })
+      });
+      alert(res.ok ? "Saved!" : "Error: " + await res.text());
+    };
+    window.onload = load;
+  </script>
+</body>
+</html>
